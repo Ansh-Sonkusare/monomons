@@ -1,31 +1,21 @@
-import { useEffect, useRef } from 'react';
-import { GameEngine } from './engine/GameEngine';
-import './App.css';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Navbar from './components/Navbar';
+import LandingPage from './pages/LandingPage';
+import Dashboard from './pages/Dashboard';
+import PokemonWorld from './pages/PokemonWorld';
 
 function App() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const gameRef = useRef<GameEngine | null>(null);
-
-  useEffect(() => {
-    if (!canvasRef.current) return;
-
-    const game = new GameEngine(canvasRef.current);
-    gameRef.current = game;
-    game.start();
-
-    return () => {
-      game.stop();
-    };
-  }, []);
-
   return (
-    <div className="game-container">
-      <canvas ref={canvasRef} />
-      <div className="game-title">
-        <h1>🌍 Pokemon World</h1>
-        <p>Explore the infinite islands!</p>
+    <Router>
+      <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-900 via-[#0a0a0a] to-black text-white">
+        <Routes>
+          <Route path="/" element={<><Navbar /><LandingPage /></>} />
+          <Route element={<Dashboard />}>
+            <Route path="/pokemon-world" element={<PokemonWorld />} />
+          </Route>
+        </Routes>
       </div>
-    </div>
+    </Router>
   );
 }
 

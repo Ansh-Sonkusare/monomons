@@ -1,4 +1,4 @@
-import SimplexNoise from '../utils/Noise';
+import SimplexNoise from '../../../utils/Noise';
 import { TerrainType, type Decoration, DecorationType } from './TerrainTypes';
 import {
     NOISE_SCALE,
@@ -14,7 +14,7 @@ import {
     FLOWER_CHANCE,
     HOUSE_CHANCE,
     FARM_CHANCE,
-} from '../utils/Constants';
+} from '../../../utils/Constants';
 
 export class TerrainGenerator {
     private elevationNoise: SimplexNoise;

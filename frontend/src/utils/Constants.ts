@@ -18,8 +18,8 @@ export const MOISTURE_SCALE = 0.02;
 export const ISLAND_SCALE = 0.005;
 
 // Biome thresholds (0-1 range from noise)
-export const WATER_THRESHOLD = 0.35;
-export const BEACH_THRESHOLD = 0.4;
+export const WATER_THRESHOLD = 0.25;
+export const BEACH_THRESHOLD = 0.3;
 export const GRASS_THRESHOLD = 0.65;
 export const MOUNTAIN_THRESHOLD = 0.75;
 export const SNOW_THRESHOLD = 0.85;
