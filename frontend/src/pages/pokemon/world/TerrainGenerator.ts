@@ -16,6 +16,10 @@ import {
     FARM_CHANCE,
 } from '../../../utils/Constants';
 
+// Dojo name generation
+const DOJO_PREFIXES = ["Iron", "Shadow", "Thunder", "Crystal", "Dragon", "Phoenix", "Spirit", "Void", "Solar", "Lunar", "Ancient", "Mystic"];
+const DOJO_SUFFIXES = ["Fist", "Strike", "Temple", "Sanctuary", "Grounds", "Arena", "Dojo", "Peak", "Valley", "Gate", "Haven", "Vault"];
+
 export class TerrainGenerator {
     private elevationNoise: SimplexNoise;
     private moistureNoise: SimplexNoise;
@@ -142,6 +146,51 @@ export class TerrainGenerator {
                     };
                 }
                 break;
+        }
+
+        // Region-based generation for rare structures (Dojos)
+        // Check independent of terrain switch to keep logic clean, but ensure valid terrain
+        if (terrain === TerrainType.GRASS || terrain === TerrainType.DARK_GRASS || terrain === TerrainType.SNOW || terrain === TerrainType.BEACH) {
+            const REGION_SIZE = 40; // More frequent dojos (was 80)
+            const regionX = Math.floor(worldX / REGION_SIZE);
+            const regionY = Math.floor(worldY / REGION_SIZE);
+
+            // Seed random for this region
+            // Using a different large prime set to avoid correlation with other noise
+            const regionHash = Math.abs(Math.sin(regionX * 45.9898 + regionY * 78.233) * 63758.5453);
+            const regionRandom = regionHash - Math.floor(regionHash);
+
+            // Determine the relative position of the dojo in this region
+            const dojoRelX = Math.floor(regionRandom * REGION_SIZE);
+            const dojoRelY = Math.floor(((regionRandom * 100) % 1) * REGION_SIZE);
+
+            // Check if current tile is the chosen dojo location
+            // Use absolute coordinates for comparison
+            // Fix: handle negative coordinates correctly for modulo/floor operations if needed, but here we mapped world to region.
+            // worldX could be negative. Math.floor handles negative correctly (-1.5 -> -2).
+            // A simple equality check is sufficient.
+            const targetX = regionX * REGION_SIZE + dojoRelX;
+            const targetY = regionY * REGION_SIZE + dojoRelY;
+
+            if (worldX === targetX && worldY === targetY) {
+                // Generate deterministic name
+                const nameHash = Math.abs(Math.sin(worldX * 34.123 + worldY * 98.456) * 12345.678);
+                const nameRandom = nameHash - Math.floor(nameHash);
+
+                const prefixIndex = Math.floor(nameRandom * DOJO_PREFIXES.length);
+                const suffixIndex = Math.floor(((nameRandom * 10) % 1) * DOJO_SUFFIXES.length);
+
+                const dojoName = `${DOJO_PREFIXES[prefixIndex]} ${DOJO_SUFFIXES[suffixIndex]}`;
+
+                return {
+                    type: DecorationType.DOJO,
+                    x: worldX,
+                    y: worldY,
+                    solid: true,
+                    name: dojoName,
+                    roomId: `room-${worldX}-${worldY}`
+                };
+            }
         }
 
         return null;

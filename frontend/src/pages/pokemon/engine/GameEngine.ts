@@ -5,6 +5,9 @@ import { InputManager } from '../input/InputManager';
 import { Renderer } from '../renderer/Renderer';
 import { FRAME_TIME, TILE_SIZE } from '../../../utils/Constants';
 import { GameWebSocket, type OnlinePlayer } from '../../../services/GameWebSocket';
+import { DecorationType } from '../world/TerrainTypes';
+
+export type InteractionCallback = (dojo: { name: string, roomId: string } | null) => void;
 
 export class GameEngine {
     private canvas: HTMLCanvasElement;
@@ -20,6 +23,10 @@ export class GameEngine {
     private lastPositionSent: { x: number; y: number } = { x: 0, y: 0 };
     private positionSendInterval = 100; // Send position every 100ms
     private lastPositionSendTime = 0;
+    private myPlayerId: string | null = null;
+
+    private onDojoProximityCallback: InteractionCallback | null = null;
+    private lastInteractedDojo: string | null = null;
 
     constructor(canvas: HTMLCanvasElement, token?: string) {
         this.canvas = canvas;
@@ -55,6 +62,8 @@ export class GameEngine {
 
         this.ws.onAuth((player, onlinePlayers) => {
             console.log("Authenticated as:", player);
+            this.myPlayerId = player.id;
+            
             // Set player position from server
             this.player.x = player.position.x;
             this.player.y = player.position.y;
@@ -70,6 +79,10 @@ export class GameEngine {
 
         this.ws.onPlayerJoin((player) => {
             console.log("New player joined:", player);
+            if (this.myPlayerId && player.id === this.myPlayerId) {
+                console.log("Ignoring self-join event");
+                return;
+            }
             this.addOtherPlayer(player);
         });
 
@@ -82,8 +95,8 @@ export class GameEngine {
             const otherPlayer = this.otherPlayers.get(playerId);
             if (otherPlayer) {
                 console.log(`Player ${playerId} moved to`, position);
-                otherPlayer.x = position.x;
-                otherPlayer.y = position.y;
+                otherPlayer.targetX = position.x;
+                otherPlayer.targetY = position.y;
                 // Convert string direction to enum
                 try {
                     const directionMap: { [key: string]: Direction } = {
@@ -94,9 +107,9 @@ export class GameEngine {
                     };
                     const dirStr = position.direction ? position.direction.toLowerCase() : 'down';
                     otherPlayer.direction = directionMap[dirStr] !== undefined ? directionMap[dirStr] : Direction.DOWN;
-                    
+
                     // Force update logs
-                    console.log(`[Move] Updated player ${playerId} to ${position.x}, ${position.y} facing ${dirStr}`);
+                    // console.log(`[Move] Updated player ${playerId} to ${position.x}, ${position.y} facing ${dirStr}`);
                 } catch (e) {
                     console.error("Error updating direction:", e);
                 }
@@ -120,7 +133,7 @@ export class GameEngine {
             };
             const dirStr = playerData.position.direction ? playerData.position.direction.toLowerCase() : 'down';
             player.direction = directionMap[dirStr] !== undefined ? directionMap[dirStr] : Direction.DOWN;
-            
+
             this.otherPlayers.set(playerData.id, player);
             console.log(`Added other player ${playerData.id} at (${player.x}, ${player.y})`, this.otherPlayers.size, 'total players');
         } catch (e) {
@@ -132,8 +145,8 @@ export class GameEngine {
         if (!this.ws || !this.ws.isConnected()) return;
 
         const now = Date.now();
-        const distanceMoved = Math.abs(this.player.x - this.lastPositionSent.x) + 
-                             Math.abs(this.player.y - this.lastPositionSent.y);
+        const distanceMoved = Math.abs(this.player.x - this.lastPositionSent.x) +
+            Math.abs(this.player.y - this.lastPositionSent.y);
 
         if (distanceMoved > 1 || now - this.lastPositionSendTime > this.positionSendInterval) {
             const directionString = Direction[this.player.direction].toLowerCase();
@@ -162,6 +175,47 @@ export class GameEngine {
         }
     }
 
+    setInteractionCallback(callback: InteractionCallback) {
+        this.onDojoProximityCallback = callback;
+    }
+
+    private checkInteractions(): void {
+        if (!this.onDojoProximityCallback) return;
+
+        const playerTileX = this.player.getWorldTileX();
+        const playerTileY = this.player.getWorldTileY();
+        const interactionRadius = 2;
+
+        let nearbyDojo = null;
+
+        for (let y = -interactionRadius; y <= interactionRadius; y++) {
+            for (let x = -interactionRadius; x <= interactionRadius; x++) {
+                const tile = this.world.getTileAt(playerTileX + x, playerTileY + y);
+                if (tile && tile.decoration && tile.decoration.type === DecorationType.DOJO) {
+                    nearbyDojo = {
+                        name: tile.decoration.name || "Unknown Dojo",
+                        roomId: tile.decoration.roomId || `room-${playerTileX + x}-${playerTileY + y}`
+                    };
+                    break;
+                }
+            }
+            if (nearbyDojo) break;
+        }
+
+        // Only trigger callback if state changed
+        if (nearbyDojo) {
+            if (this.lastInteractedDojo !== nearbyDojo.roomId) {
+                this.lastInteractedDojo = nearbyDojo.roomId;
+                this.onDojoProximityCallback(nearbyDojo);
+            }
+        } else {
+            if (this.lastInteractedDojo !== null) {
+                this.lastInteractedDojo = null;
+                this.onDojoProximityCallback(null);
+            }
+        }
+    }
+
     private gameLoop = (): void => {
         const currentTime = performance.now();
         const deltaTime = currentTime - this.lastFrameTime;
@@ -179,6 +233,11 @@ export class GameEngine {
         // Update player
         this.player.update(this.input, this.world);
 
+        // Update other players (for interpolation)
+        this.otherPlayers.forEach((otherPlayer) => {
+            otherPlayer.update(null, this.world);
+        });
+
         // Send position update to server
         this.sendPositionUpdate();
 
@@ -188,6 +247,9 @@ export class GameEngine {
 
         // Update world chunks based on player position
         this.world.updateChunks(this.player.getWorldTileX(), this.player.getWorldTileY());
+
+        // Check for interactions
+        this.checkInteractions();
     }
 
     private debugInfo: string[] = [];
@@ -195,15 +257,15 @@ export class GameEngine {
     private render(): void {
         this.renderer.clear();
         this.renderer.renderWorld(this.world, this.camera);
-        
+
         // Render other players
         this.otherPlayers.forEach((otherPlayer) => {
             this.renderer.renderPlayer(otherPlayer, this.camera);
         });
-        
+
         // Render local player on top
         this.renderer.renderPlayer(this.player, this.camera);
-        
+
         // Update debug info
         this.debugInfo = [
             `Players Online: ${this.otherPlayers.size + 1}`,

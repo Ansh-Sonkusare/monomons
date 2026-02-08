@@ -17,6 +17,11 @@ export class Player {
     private speed: number;
     private isMoving: boolean;
 
+    // Interpolation for remote players
+    public targetX?: number;
+    public targetY?: number;
+    private lerpFactor: number = 0.2; // Smoothing factor
+
     constructor(startX: number, startY: number, address?: string) {
         this.x = startX;
         this.y = startY;
@@ -26,54 +31,82 @@ export class Player {
         this.isMoving = false;
     }
 
-    update(input: InputManager, world: WorldManager): void {
-        let dx = 0;
-        let dy = 0;
+    update(input: InputManager | null, world: WorldManager): void {
         this.isMoving = false;
 
-        if (input.isMovingUp()) {
-            dy -= this.speed;
-            this.direction = Direction.UP;
-            this.isMoving = true;
-        }
-        if (input.isMovingDown()) {
-            dy += this.speed;
-            this.direction = Direction.DOWN;
-            this.isMoving = true;
-        }
-        if (input.isMovingLeft()) {
-            dx -= this.speed;
-            this.direction = Direction.LEFT;
-            this.isMoving = true;
-        }
-        if (input.isMovingRight()) {
-            dx += this.speed;
-            this.direction = Direction.RIGHT;
-            this.isMoving = true;
-        }
+        // If local player (has input)
+        if (input) {
+            let dx = 0;
+            let dy = 0;
 
-        // Normalize diagonal movement
-        if (dx !== 0 && dy !== 0) {
-            dx /= Math.sqrt(2);
-            dy /= Math.sqrt(2);
-        }
+            if (input.isMovingUp()) {
+                dy -= this.speed;
+                this.direction = Direction.UP;
+                this.isMoving = true;
+            }
+            if (input.isMovingDown()) {
+                dy += this.speed;
+                this.direction = Direction.DOWN;
+                this.isMoving = true;
+            }
+            if (input.isMovingLeft()) {
+                dx -= this.speed;
+                this.direction = Direction.LEFT;
+                this.isMoving = true;
+            }
+            if (input.isMovingRight()) {
+                dx += this.speed;
+                this.direction = Direction.RIGHT;
+                this.isMoving = true;
+            }
 
-        // Check collision before moving
-        const newX = this.x + dx;
-        const newY = this.y + dy;
+            // Normalize diagonal movement
+            if (dx !== 0 && dy !== 0) {
+                dx /= Math.sqrt(2);
+                dy /= Math.sqrt(2);
+            }
 
-        // Check multiple points around player for collision
-        const canMove = this.canMoveTo(newX, newY, world);
+            // Check collision before moving
+            const newX = this.x + dx;
+            const newY = this.y + dy;
 
-        if (canMove) {
-            this.x = newX;
-            this.y = newY;
-        } else {
-            // Try sliding along walls
-            if (this.canMoveTo(newX, this.y, world)) {
+            // Check multiple points around player for collision
+            const canMove = this.canMoveTo(newX, newY, world);
+
+            if (canMove) {
                 this.x = newX;
-            } else if (this.canMoveTo(this.x, newY, world)) {
                 this.y = newY;
+            } else {
+                // Try sliding along walls
+                if (this.canMoveTo(newX, this.y, world)) {
+                    this.x = newX;
+                } else if (this.canMoveTo(this.x, newY, world)) {
+                    this.y = newY;
+                }
+            }
+        } else {
+            // Remote player interpolation
+            if (this.targetX !== undefined && this.targetY !== undefined) {
+                const dx = this.targetX - this.x;
+                const dy = this.targetY - this.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance > 1) {
+                    this.x += dx * this.lerpFactor;
+                    this.y += dy * this.lerpFactor;
+                    this.isMoving = true;
+
+                    // Update direction based on movement
+                    if (Math.abs(dx) > Math.abs(dy)) {
+                        this.direction = dx > 0 ? Direction.RIGHT : Direction.LEFT;
+                    } else {
+                        this.direction = dy > 0 ? Direction.DOWN : Direction.UP;
+                    }
+                } else {
+                    this.x = this.targetX;
+                    this.y = this.targetY;
+                    this.isMoving = false;
+                }
             }
         }
     }

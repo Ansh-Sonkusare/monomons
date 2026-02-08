@@ -30,8 +30,8 @@ function DashboardNavbar() {
   };
 
   return (
-    <nav className="fixed top-0 w-full h-20 z-50 flex items-start justify-end">
-      <div className="bg-black/30 backdrop-blur-md border border-white/20 px-6 py-3 shadow-lg">
+    <nav className="fixed top-0 w-full h-1 z-50 flex items-start justify-end">
+      <div className="bg-black/30 backdrop-blur-md border border-white/20 px-3 py-2 shadow-lg">
         <div className="flex items-center gap-4">
         {isAuthenticated ? (
           <>
@@ -40,7 +40,7 @@ function DashboardNavbar() {
             </span>
             <button 
               onClick={handleDisconnect}
-              className="bg-red-600/90 text-white py-2 px-5 text-sm rounded-md cursor-pointer font-semibold transition-all duration-300 hover:bg-red-700 hover:shadow-[0_0_15px_rgba(239,68,68,0.3)] border border-red-600/50"
+              className="bg-red-600/90 text-white py-1 px-2 text-sm cursor-pointer font-semibold transition-all duration-300 hover:bg-red-700 hover:shadow-[0_0_15px_rgba(239,68,68,0.3)] border border-red-600/50"
             >
               Disconnect
             </button>

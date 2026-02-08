@@ -37,13 +37,16 @@ export enum DecorationType {
     GRASS_TUFT = 'grass_tuft',
     HOUSE = 'house',
     FARM = 'farm',
+    DOJO = 'dojo',
 }
 
 export interface Decoration {
     type: DecorationType;
     x: number;
     y: number;
-    solid: boolean; // Can player walk through it?
+    solid: boolean;
+    name?: string;
+    roomId?: string;
 }
 
 export const DECORATION_COLORS: Record<DecorationType, TerrainColor[]> = {
@@ -75,5 +78,9 @@ export const DECORATION_COLORS: Record<DecorationType, TerrainColor[]> = {
     [DecorationType.FARM]: [
         { r: 160, g: 120, b: 60 },  // Field
         { r: 220, g: 180, b: 60 },  // Crops
+    ],
+    [DecorationType.DOJO]: [
+        { r: 200, g: 50, b: 50 },   // Red Roof
+        { r: 240, g: 240, b: 240 }, // White Walls
     ],
 };
