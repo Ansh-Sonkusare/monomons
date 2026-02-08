@@ -1,6 +1,6 @@
 import { TerrainType, type Decoration } from './TerrainTypes';
 import { TerrainGenerator } from './TerrainGenerator';
-import { CHUNK_SIZE } from '../utils/Constants';
+import { CHUNK_SIZE } from '../../../utils/Constants';
 
 export interface Tile {
     terrain: TerrainType;

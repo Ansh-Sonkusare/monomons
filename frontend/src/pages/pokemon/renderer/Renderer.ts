@@ -1,7 +1,7 @@
 import { Camera } from '../engine/Camera';
 import { WorldManager } from '../world/WorldManager';
 import { Player, Direction } from '../entities/Player';
-import { TILE_SIZE } from '../utils/Constants';
+import { TILE_SIZE } from '../../../utils/Constants';
 import { TERRAIN_COLORS, DECORATION_COLORS, DecorationType, TerrainType } from '../world/TerrainTypes';
 
 export class Renderer {
@@ -250,17 +250,40 @@ export class Renderer {
         this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
         this.ctx.lineWidth = 1;
         this.ctx.strokeRect(x + 7, y + 6, 10, 9); // Head outline
+
+        // Render wallet address above player
+        if (player.address) {
+            const shortAddress = player.address.slice(0, 6) + '...' + player.address.slice(-4);
+            this.ctx.font = '8px monospace';
+            this.ctx.textAlign = 'center';
+            
+            // Background for text
+            const textWidth = this.ctx.measureText(shortAddress).width;
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillRect(x + 12 - textWidth / 2 - 2, y - 8, textWidth + 4, 10);
+            
+            // Render text
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.fillText(shortAddress, x + 12, y);
+            this.ctx.textAlign = 'left';
+        }
     }
 
-    renderUI(player: Player): void {
+    renderUI(player: Player, debugInfo?: string[]): void {
         // Debug info
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        this.ctx.fillRect(10, 10, 200, 60);
+        this.ctx.fillRect(10, 10, 250, 100);
 
         this.ctx.fillStyle = '#FFFFFF';
         this.ctx.font = '12px monospace';
         this.ctx.fillText(`X: ${player.getWorldTileX()}`, 20, 30);
         this.ctx.fillText(`Y: ${player.getWorldTileY()}`, 20, 50);
         this.ctx.fillText(`WASD to move`, 20, 70);
+
+        if (debugInfo) {
+            debugInfo.forEach((info, index) => {
+                this.ctx.fillText(info, 20, 90 + (index * 20));
+            });
+        }
     }
 }

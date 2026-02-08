@@ -1,4 +1,4 @@
-import { CAMERA_SMOOTH } from '../utils/Constants';
+import { CAMERA_SMOOTH } from '../../../utils/Constants';
 
 export class Camera {
     public x: number;

@@ -1,6 +1,6 @@
 import { Chunk, type Tile } from './Chunk';
 import { TerrainGenerator } from './TerrainGenerator';
-import { CHUNK_SIZE, CHUNK_LOAD_RADIUS, CHUNK_UNLOAD_RADIUS } from '../utils/Constants';
+import { CHUNK_SIZE, CHUNK_LOAD_RADIUS, CHUNK_UNLOAD_RADIUS } from '../../../utils/Constants';
 
 export class WorldManager {
     private chunks: Map<string, Chunk>;

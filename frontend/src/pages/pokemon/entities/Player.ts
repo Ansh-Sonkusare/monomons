@@ -1,4 +1,4 @@
-import { PLAYER_SPEED, PLAYER_SIZE, TILE_SIZE } from '../utils/Constants';
+import { PLAYER_SPEED, PLAYER_SIZE, TILE_SIZE } from '../../../utils/Constants';
 import { InputManager } from '../input/InputManager';
 import { WorldManager } from '../world/WorldManager';
 
@@ -13,13 +13,15 @@ export class Player {
     public x: number;
     public y: number;
     public direction: Direction;
+    public address?: string;
     private speed: number;
     private isMoving: boolean;
 
-    constructor(startX: number, startY: number) {
+    constructor(startX: number, startY: number, address?: string) {
         this.x = startX;
         this.y = startY;
         this.direction = Direction.DOWN;
+        this.address = address;
         this.speed = PLAYER_SPEED;
         this.isMoving = false;
     }
