@@ -172,6 +172,48 @@ export class Renderer {
                     this.ctx.fillRect(x + 2 + i * 3, y + 2, 2, 12);
                 }
                 break;
+
+            case DecorationType.DOJO: {
+                // Large Dojo Structure - Pagoda style
+                // 3x size of a normal tile roughly
+                const width = 48;
+                const height = 40;
+                const offsetX = -16;
+                const offsetY = -24;
+                
+                // Building Base/Walls (White)
+                this.ctx.fillStyle = `rgb(${colors[1].r}, ${colors[1].g}, ${colors[1].b})`;
+                this.ctx.fillRect(x + offsetX + 8, y + offsetY + 16, width - 16, height - 16);
+                
+                // Pillars (Dark Wood)
+                this.ctx.fillStyle = '#5C4033'; 
+                this.ctx.fillRect(x + offsetX + 8, y + offsetY + 16, 4, height - 16); // Left
+                this.ctx.fillRect(x + offsetX + width - 12, y + offsetY + 16, 4, height - 16); // Right
+                
+                // Entrance/Door (Darker Wood)
+                this.ctx.fillStyle = '#3E2723';
+                this.ctx.fillRect(x + offsetX + 18, y + offsetY + height - 12, 12, 12);
+                
+                // Roof (Pagoda style layered - Red)
+                this.ctx.fillStyle = `rgb(${colors[0].r}, ${colors[0].g}, ${colors[0].b})`;
+                
+                // Bottom tier roof
+                this.ctx.fillRect(x + offsetX - 4, y + offsetY + 12, width + 8, 6);
+                this.ctx.fillRect(x + offsetX, y + offsetY + 10, width, 2);
+                
+                // Top tier roof
+                this.ctx.fillRect(x + offsetX + 4, y + offsetY - 2, width - 8, 8);
+                this.ctx.fillRect(x + offsetX + 8, y + offsetY - 4, width - 16, 2);
+                
+                // Topmost point
+                this.ctx.fillRect(x + offsetX + 20, y + offsetY - 8, 8, 6);
+                
+                // Sign (Gold)
+                this.ctx.fillStyle = '#FFD700'; 
+                this.ctx.fillRect(x + offsetX + 20, y + offsetY + 22, 8, 4);
+                break;
+            }
+
         }
     }
 

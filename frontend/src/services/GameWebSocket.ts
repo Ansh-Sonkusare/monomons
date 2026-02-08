@@ -11,6 +11,51 @@ export interface OnlinePlayer {
   position: PlayerPosition;
 }
 
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  text: string;
+  timestamp: number;
+}
+
+export interface BattlePokemon {
+    id: string; 
+    speciesName: string;
+    types: string[];
+    stats: {
+        hp: number;
+        maxHp: number;
+        attack: number;
+        defense: number;
+        spAttack: number;
+        spDefense: number;
+        speed: number;
+    };
+    moves: { name: string; type: string }[];
+    ability: { name: string; description?: string };
+    status?: string;
+    cooldowns: Record<string, number>;
+}
+
+export interface BattlePlayer {
+    id: string;
+    name: string;
+    team: BattlePokemon[];
+    activePokemonIndex: number;
+    faintedCount: number;
+}
+
+export interface BattleState {
+    id: string;
+    turn: number;
+    playerA: BattlePlayer;
+    playerB: BattlePlayer;
+    log: string[];
+    winner?: string;
+    phase: 'waiting' | 'action' | 'finished';
+}
+
 export class GameWebSocket {
   private ws: WebSocket | null = null;
   private token: string;
@@ -19,10 +64,19 @@ export class GameWebSocket {
   private onPlayerLeft?: (playerId: string) => void;
   private onPlayerMoved?: (playerId: string, position: PlayerPosition) => void;
   private onAuthSuccess?: (player: OnlinePlayer, onlinePlayers: OnlinePlayer[]) => void;
+  
+  private onRoomState?: (players: OnlinePlayer[]) => void;
+  private onRoomPlayerJoined?: (player: OnlinePlayer) => void;
+  private onRoomPlayerLeft?: (playerId: string) => void;
+  private onRoomMessage?: (message: ChatMessage) => void;
+  
+  private onBattleStateUpdate?: (state: BattleState) => void;
+
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 2000;
   private authenticated = false;
+  private pendingRoomJoin: string | null = null;
 
   constructor(token: string) {
     this.token = token;
@@ -72,6 +126,10 @@ export class GameWebSocket {
         if (this.onAuthSuccess) {
           this.onAuthSuccess(message.player, message.onlinePlayers);
         }
+        if (this.pendingRoomJoin) {
+            this.send({ type: 'join_room', roomId: this.pendingRoomJoin });
+            this.pendingRoomJoin = null;
+        }
         break;
 
       case "player_joined":
@@ -86,6 +144,27 @@ export class GameWebSocket {
         if (this.onPlayerLeft) {
           this.onPlayerLeft(message.playerId);
         }
+        break;
+      
+      case "room_state":
+        if (this.onRoomState) this.onRoomState(message.players);
+        break;
+        
+      case "room_player_joined":
+        if (this.onRoomPlayerJoined) this.onRoomPlayerJoined(message.player);
+        break;
+
+      case "room_player_left":
+        if (this.onRoomPlayerLeft) this.onRoomPlayerLeft(message.playerId);
+        break;
+
+      case "room_message":
+        if (this.onRoomMessage) this.onRoomMessage(message.message);
+        break;
+
+      case "battle_state":
+      case "battle_update":
+        if (this.onBattleStateUpdate) this.onBattleStateUpdate(message.state);
         break;
 
       case "player_moved":
@@ -124,6 +203,23 @@ export class GameWebSocket {
     });
   }
 
+  joinRoom(roomId: string) {
+    if (this.authenticated) {
+        this.send({ type: 'join_room', roomId });
+    } else {
+        this.pendingRoomJoin = roomId;
+    }
+  }
+
+  sendChatMessage(roomId: string, text: string) {
+    if (!this.authenticated) return;
+    this.send({
+        type: 'chat_message',
+        roomId,
+        text
+    });
+  }
+
   private send(data: any) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(data));
@@ -140,6 +236,24 @@ export class GameWebSocket {
   }
 
   // Event handlers
+  onBattleUpdate(callback: (state: BattleState) => void) {
+      this.onBattleStateUpdate = callback;
+  }
+
+  onRoomEvent(
+    callbacks: {
+        onState?: (players: OnlinePlayer[]) => void;
+        onJoin?: (player: OnlinePlayer) => void;
+        onLeave?: (playerId: string) => void;
+        onMessage?: (message: ChatMessage) => void;
+    }
+  ) {
+      if (callbacks.onState) this.onRoomState = callbacks.onState;
+      if (callbacks.onJoin) this.onRoomPlayerJoined = callbacks.onJoin;
+      if (callbacks.onLeave) this.onRoomPlayerLeft = callbacks.onLeave;
+      if (callbacks.onMessage) this.onRoomMessage = callbacks.onMessage;
+  }
+
   onAuth(callback: (player: OnlinePlayer, onlinePlayers: OnlinePlayer[]) => void) {
     this.onAuthSuccess = callback;
   }

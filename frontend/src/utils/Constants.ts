@@ -1,9 +1,8 @@
-// Game configuration constants
 export const TILE_SIZE = 16; // pixels
 export const CHUNK_SIZE = 16; // tiles per chunk
 export const CHUNK_PIXEL_SIZE = TILE_SIZE * CHUNK_SIZE; // 256 pixels
 
-export const PLAYER_SPEED = 3; // pixels per frame
+export const PLAYER_SPEED = 6; // pixels per frame
 export const PLAYER_SIZE = 24; // pixels
 
 export const CAMERA_SMOOTH = 0.1;
@@ -30,6 +29,7 @@ export const ROCK_CHANCE = 0.05;
 export const FLOWER_CHANCE = 0.15;
 export const HOUSE_CHANCE = 0.002;
 export const FARM_CHANCE = 0.003;
+export const DOJO_CHANCE = 0.0001;
 
 export const FPS = 60;
 export const FRAME_TIME = 1000 / FPS;

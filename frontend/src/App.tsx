@@ -4,6 +4,8 @@ import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
 import PokemonWorld from './pages/PokemonWorld';
 
+import DojoPage from './pages/DojoPage';
+
 function App() {
   return (
     <Router>
@@ -12,6 +14,7 @@ function App() {
           <Route path="/" element={<><Navbar /><LandingPage /></>} />
           <Route element={<Dashboard />}>
             <Route path="/pokemon-world" element={<PokemonWorld />} />
+            <Route path="/pokemon-world/:dojoName/:roomId" element={<DojoPage />} />
           </Route>
         </Routes>
       </div>
