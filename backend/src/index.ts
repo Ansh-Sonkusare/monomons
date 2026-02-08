@@ -4,6 +4,7 @@ import { openapi, fromTypes } from '@elysiajs/openapi'
 import { cors } from '@elysiajs/cors'
 import { authRoutes } from './routes/auth.routes'
 import { gameRoutes } from './routes/game.routes'
+import { AutoBattlerByRoom } from './services/battle.service'
 
 export const app = new Elysia()
 	.use(cors({
@@ -24,6 +25,10 @@ export const app = new Elysia()
 	)
 	.get('/message', { message: 'Hello from server' } as const)
 	.listen(8080)
+
+if (app.server) {
+	AutoBattlerByRoom.setServer(app.server);
+}
 
 console.log(
 	`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`

@@ -1,11 +1,14 @@
 import { Elysia } from "elysia";
 import { AuthService } from "../services/auth.service";
 import { playerStateManager, type PlayerPosition } from "../services/player.service";
+import { AutoBattlerByRoom } from "../services/battle.service";
 
 interface WebSocketData {
   playerId?: string;
   userId?: string;
   address?: string;
+  roomId?: string;
+  sessionId?: string;
 }
 
 
@@ -56,6 +59,10 @@ export const gameRoutes = new Elysia()
             wsData.playerId = player.id;
             wsData.userId = player.userId;
             wsData.address = player.address;
+            wsData.sessionId = player.sessionId;
+
+            // Subscribe FIRST before sending any messages
+            ws.subscribe("game");
 
             ws.send(
               JSON.stringify({
@@ -70,7 +77,7 @@ export const gameRoutes = new Elysia()
               })
             );
 
-            // Broadcast new player joined to all others
+            // Broadcast new player joined to all others (after subscription)
             ws.publish(
               "game",
               JSON.stringify({
@@ -84,7 +91,6 @@ export const gameRoutes = new Elysia()
               })
             );
 
-            ws.subscribe("game");
             break;
           }
 
@@ -116,6 +122,71 @@ export const gameRoutes = new Elysia()
             break;
           }
 
+          case "join_room": {
+            const { playerId } = wsData;
+            const { roomId } = message;
+
+            if (!playerId) return;
+
+            wsData.roomId = roomId;
+            playerStateManager.setPlayerRoom(playerId, roomId);
+            
+            // Sub to room channel
+            ws.subscribe(`room:${roomId}`);
+            
+            // Notify others in room
+            ws.publish(
+              `room:${roomId}`,
+              JSON.stringify({
+                type: "room_player_joined",
+                player: playerStateManager.getPlayer(playerId)
+              })
+            );
+
+            // Send current room players to joining user
+            const roomPlayers = playerStateManager.getPlayersInRoom(roomId);
+            ws.send(JSON.stringify({
+              type: "room_state",
+              players: roomPlayers
+            }));
+
+            // Initialize or Retrieve Battle for this room
+            const battle = AutoBattlerByRoom.getOrCreate(roomId);
+            ws.send(JSON.stringify({
+              type: "battle_state",
+              state: battle.state
+            }));
+            
+            break;
+          }
+
+          case "chat_message": {
+             const { playerId, roomId } = wsData;
+             if (!playerId || !roomId) return;
+             
+             const player = playerStateManager.getPlayer(playerId);
+
+             // Echo back to sender too (since publish excludes sender usually in some impls, but assume pub/sub)
+             // Actually ws.publish in Elysia/Bun usually excludes sender. We should send to self manually or rely on UI optimistic update?
+             // Let's send to all in room including sender via individual send? No, broadcast to room.
+             // We can just send to self manually.
+             
+             const msgPayload = {
+               type: "room_message",
+               message: {
+                 id: Date.now().toString() + "-" + Math.random().toString(36).substr(2, 9),
+                 senderId: playerId,
+                 senderName: player?.username || player?.address,
+                 text: message.text,
+                 timestamp: Date.now()
+               }
+             };
+
+             ws.publish(`room:${roomId}`, JSON.stringify(msgPayload));
+             ws.send(JSON.stringify(msgPayload)); // Echo to self
+             break;
+          }
+
           default:
             console.log("Unknown message type:", message.type);
         }
@@ -133,16 +204,29 @@ export const gameRoutes = new Elysia()
     async close(ws) {
       const wsData = (ws.data as any);
       if (wsData?.playerId) {
-        await playerStateManager.removePlayer(wsData.playerId);
+        await playerStateManager.removePlayer(wsData.playerId, wsData.sessionId);
 
-        // Broadcast player left
-        ws.publish(
-          "game",
-          JSON.stringify({
-            type: "player_left",
-            playerId: wsData.playerId,
-          })
-        );
+        // Broadcast player left (only if actually removed? removePlayer doesn't return bool yet, but assuming check passed)
+        const stillOnline = playerStateManager.getPlayer(wsData.playerId);
+        if (!stillOnline) {
+             ws.publish(
+              "game",
+              JSON.stringify({
+                type: "player_left",
+                playerId: wsData.playerId,
+              })
+            );
+
+            if (wsData.roomId) {
+                 ws.publish(
+                  `room:${wsData.roomId}`,
+                  JSON.stringify({
+                    type: "room_player_left",
+                    playerId: wsData.playerId,
+                  })
+                );
+            }
+        }
       }
       console.log("WebSocket connection closed");
     },
