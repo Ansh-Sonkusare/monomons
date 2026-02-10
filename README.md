@@ -1,20 +1,25 @@
 # Monomons 🎮
 
-A blockchain-based Pokemon-style gaming platform built on Monad Testnet, featuring an infinite procedurally-generated open world with AI-powered Pokemon battles and real-time betting mechanics.
+A **multiplayer blockchain gaming platform** built on **Monad Testnet**, featuring multiple interactive games with real-time betting mechanics and AI-powered gameplay.
 
 ## 🌟 Overview
 
-Monomons combines the nostalgia of Pokemon with modern blockchain technology and AI. Players explore an infinite, procedurally-generated island world, discover interactive dojos, and place bets on AI-controlled Pokemon battles using cryptocurrency.
+Monomons is a next-generation multiplayer gaming platform on Monad that combines classic gaming experiences with modern blockchain technology and AI. Currently featuring **Pokemon Open World** as the first live game, with more exciting multiplayer experiences coming soon!
+
+### 🎯 Current Games
+
+#### Pokemon Open World **LIVE**
+Explore an infinite, procedurally-generated island world, discover interactive dojos, and place bets on AI-controlled Pokemon battles using Monad tokens.
 
 ### Key Features
 
-- **🗺️ Infinite Open World**: Procedurally-generated terrain with diverse biomes (grass, sand, mountains, snow, oceans)
-- **🏛️ Interactive Dojos**: Rare structures scattered across the world where battles take place
-- **🤖 AI-Powered Battles**: Automated Pokemon battles using Google's Gemini AI for strategic move selection
-- **💰 Real-Time Betting**: Place bets on battle outcomes using Monad testnet tokens
-- **🔐 Wallet Authentication**: Secure wallet-based authentication with signature verification
+- **Infinite Open World**: Procedurally-generated terrain with diverse biomes (grass, sand, mountains, snow, oceans)
+- **Interactive Dojos**: Rare structures scattered across the world where battles take place
+- **AI-Powered Battles**: Automated Pokemon battles using Google's Gemini AI for strategic move selection
+- **Real-Time Betting**: Place bets on battle outcomes using Monad testnet tokens
+- **Wallet Authentication**: Secure wallet-based authentication with signature verification
 - **⚡ Real-Time Updates**: WebSocket-based live battle updates and player interactions
-- **🎨 Modern UI**: Beautiful, responsive interface with animations and glassmorphism effects
+- **Modern UI**: Beautiful, responsive interface with animations and glassmorphism effects
 
 ## 🏗️ Architecture
 
