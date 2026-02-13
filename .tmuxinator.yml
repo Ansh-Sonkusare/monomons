@@ -1,0 +1,20 @@
+# ./.tmuxinator.yml
+name: monomons
+root: /home/teak/code/monomons
+
+windows:
+  - editor:
+      layout: main-vertical
+      panes:
+        - nvim .
+
+  - app:
+      layout: even-horizontal
+      panes:
+        - backend:
+            - cd backend
+            - bun run dev
+        - frontend:
+            - cd frontend
+            - bun run dev
+

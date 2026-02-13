@@ -6,6 +6,7 @@ import { Renderer } from '../renderer/Renderer';
 import { FRAME_TIME, TILE_SIZE } from '../../../utils/Constants';
 import { GameWebSocket, type OnlinePlayer } from '../../../services/GameWebSocket';
 import { DecorationType } from '../world/TerrainTypes';
+import { logger } from '../../../utils/logger';
 
 export type InteractionCallback = (dojo: { name: string, roomId: string } | null) => void;
 
@@ -61,7 +62,7 @@ export class GameEngine {
         this.ws = new GameWebSocket(token);
 
         this.ws.onAuth((player, onlinePlayers) => {
-            console.log("Authenticated as:", player);
+            logger.info('game-engine', 'Authenticated as:', player);
             this.myPlayerId = player.id;
             
             // Set player position from server
@@ -78,23 +79,23 @@ export class GameEngine {
         });
 
         this.ws.onPlayerJoin((player) => {
-            console.log("New player joined:", player);
+            logger.info('game-engine', 'New player joined:', player);
             if (this.myPlayerId && player.id === this.myPlayerId) {
-                console.log("Ignoring self-join event");
+                logger.info('game-engine', 'Ignoring self-join event');
                 return;
             }
             this.addOtherPlayer(player);
         });
 
         this.ws.onPlayerLeave((playerId) => {
-            console.log("Player left:", playerId);
+            logger.info('game-engine', 'Player left:', playerId);
             this.otherPlayers.delete(playerId);
         });
 
         this.ws.onPlayerMove((playerId, position) => {
             const otherPlayer = this.otherPlayers.get(playerId);
             if (otherPlayer) {
-                console.log(`Player ${playerId} moved to`, position);
+                logger.info('game-engine', `Player ${playerId} moved to`, position);
                 otherPlayer.targetX = position.x;
                 otherPlayer.targetY = position.y;
                 // Convert string direction to enum
@@ -109,12 +110,12 @@ export class GameEngine {
                     otherPlayer.direction = directionMap[dirStr] !== undefined ? directionMap[dirStr] : Direction.DOWN;
 
                     // Force update logs
-                    // console.log(`[Move] Updated player ${playerId} to ${position.x}, ${position.y} facing ${dirStr}`);
+                    // logger.debug('game-engine', `[Move] Updated player ${playerId} to ${position.x}, ${position.y} facing ${dirStr}`);
                 } catch (e) {
-                    console.error("Error updating direction:", e);
+                    logger.error('game-engine', 'Error updating direction:', e);
                 }
             } else {
-                console.log(`Player ${playerId} not found in otherPlayers`);
+                logger.info('game-engine', `Player ${playerId} not found in otherPlayers`);
             }
         });
 
@@ -135,9 +136,9 @@ export class GameEngine {
             player.direction = directionMap[dirStr] !== undefined ? directionMap[dirStr] : Direction.DOWN;
 
             this.otherPlayers.set(playerData.id, player);
-            console.log(`Added other player ${playerData.id} at (${player.x}, ${player.y})`, this.otherPlayers.size, 'total players');
+            logger.info('game-engine', `Added other player ${playerData.id} at (${player.x}, ${player.y})`, `${this.otherPlayers.size} total players`);
         } catch (e) {
-            console.error("Error adding other player:", e);
+            logger.error('game-engine', 'Error adding other player:', e);
         }
     }
 

@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { EvervaultCard } from '../components/EvervaultCard';
 
 interface GameCard {
   id: string;
@@ -9,69 +8,109 @@ interface GameCard {
   image?: string;
   path: string;
   status: 'live' | 'coming-soon';
+  color: string;
 }
 
 function LandingPage() {
   const games: GameCard[] = [
     {
       id: '1',
-      title: 'Pokemon Open World',
-      description: 'Explore infinite procedurally generated islands with unique terrain and biomes!',
+      title: 'POKEMON WORLD',
+      description: 'Infinite procedural islands. Catch them all!',
       icon: '🌍',
       image: '/pokemon.png',
       path: '/pokemon-world',
-      status: 'live'
+      status: 'live',
+      color: 'bg-green-600'
     },
     {
       id: '2',
-      title: 'Trading Game',
-      description: 'Trade rare items and Pokemon with players worldwide!',
+      title: 'TRADING POST',
+      description: 'Swap items and Mons globally.',
       icon: '🔄',
       image: '/trending.png',
       path: '#',
-      status: 'coming-soon'
+      status: 'coming-soon',
+      color: 'bg-yellow-600'
     },
     {
       id: '3',
-      title: 'Battle Arena',
-      description: 'Challenge other players in real-time PvP battles!',
+      title: 'ARENA',
+      description: 'PvP battles. Climb the ranks.',
       icon: '⚔️',
       path: '#',
-      status: 'coming-soon'
+      status: 'coming-soon',
+      color: 'bg-red-600'
     }
   ];
 
   return (
-    <div className="min-h-screen flex items-center justify-center pt-32 pb-20 px-8">
-      <div className="max-w-7xl w-full">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-          {games.map((game) => (
-            <div key={game.id} className="relative">
-              <Link to={game.status === 'live' ? game.path : '#'} className={`block h-full group ${game.status === 'coming-soon' ? 'cursor-not-allowed opacity-80' : ''}`}>
-                <div className="relative h-[28rem] w-full">
-                  <EvervaultCard text={game.icon} image={game.image}>
-                    <div className="w-full p-10 pt-12 shrink-0 bg-black/80 border-t border-white/10 backdrop-blur-sm transition-all duration-300 group-hover:bg-black/90 z-20">
-                      <h3 className="text-xl font-bold text-white mb-2 font-space uppercase tracking-wide">{game.title}</h3>
-                      <p className="text-gray-400 text-sm mb-4 line-clamp-2">{game.description}</p>
-                      <div className="flex items-center justify-between">
-                        {game.status === 'coming-soon' && (
-                          <span className="inline-block px-6 py-3 bg-gray-800/50 border border-gray-700 text-gray-400 rounded-none text-sm font-mono uppercase tracking-wider">
-                            Coming Soon
-                          </span>
-                        )}
-                        {game.status === 'live' && (
-                          <span className="inline-block px-6 py-3 bg-green-500/20 border border-green-500/50 text-green-400 rounded-none text-sm font-mono uppercase tracking-wider group-hover:bg-green-500 group-hover:text-black transition-colors">
-                            Play Now
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </EvervaultCard>
+    <div className="min-h-screen bg-[#202028] pt-32 pb-20 px-4 font-pixel flex flex-col items-center">
+      
+      {/* Retro Header */}
+      <div className="text-center mb-16 relative">
+          <h1 className="text-4xl md:text-6xl text-yellow-400 mb-4 text-shadow-md tracking-widest uppercase">
+            MONOMONS
+          </h1>
+          <p className="text-xs md:text-sm text-gray-400 font-mono typing-effect">
+            INSERT COIN TO START...
+          </p>
+          <div className="w-full h-1 bg-white mt-4 shadow-[0_4px_0_rgba(0,0,0,0.5)]"></div>
+      </div>
+
+      <div className="max-w-6xl w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+        {games.map((game) => (
+          <div key={game.id} className="relative group">
+            <Link to={game.status === 'live' ? game.path : '#'} className={`block ${game.status === 'coming-soon' ? 'cursor-not-allowed grayscale' : 'cursor-pointer'}`}>
+              
+              {/* Cartridge Shape */}
+              <div className="bg-[#e0e0e0] p-4 rounded-t-lg shadow-[8px_8px_0px_black] border-4 border-black relative transition-transform group-hover:-translate-y-2 group-active:translate-y-0">
+                
+                {/* Cartridge Label Area */}
+                <div className={`h-48 w-full ${game.color} border-4 border-black mb-4 relative overflow-hidden flex items-center justify-center`}>
+                    {/* Scanlines Overlay */}
+                    <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_4px,6px_100%] pointer-events-none"></div>
+                    
+                    {game.image ? (
+                        <img src={game.image} alt={game.title} className="w-32 h-32 object-contain rendering-pixelated drop-shadow-[4px_4px_0_rgba(0,0,0,0.5)]" />
+                    ) : (
+                        <span className="text-6xl drop-shadow-[4px_4px_0_rgba(0,0,0,0.5)]">{game.icon}</span>
+                    )}
+                    
+                    {/* Status Badge */}
+                    {game.status === 'coming-soon' && (
+                        <div className="absolute top-2 right-2 bg-black text-white text-[8px] px-2 py-1 border border-white">
+                            LOCKED
+                        </div>
+                    )}
                 </div>
-              </Link>
-            </div>
-          ))}
-        </div>
+
+                {/* Cartridge Details */}
+                <div className="bg-[#c0c0c0] p-2 border-2 border-gray-500 inset-shadow">
+                    <h3 className="text-xs font-bold text-black uppercase mb-1 truncate">{game.title}</h3>
+                    <p className="text-[8px] text-gray-700 font-mono leading-tight h-8 overflow-hidden">
+                        {game.description}
+                    </p>
+                </div>
+
+                {/* Grip Lines */}
+                <div className="mt-4 flex justify-center gap-1">
+                    <div className="w-1 h-8 bg-gray-400 rounded-full"></div>
+                    <div className="w-1 h-8 bg-gray-400 rounded-full"></div>
+                    <div className="w-1 h-8 bg-gray-400 rounded-full"></div>
+                </div>
+
+              </div>
+              
+              {/* Insert Slot Shadow */}
+              <div className="absolute -bottom-4 left-4 right-4 h-4 bg-black/30 rounded-full blur-md -z-10 group-hover:scale-90 transition-transform"></div>
+            </Link>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-20 text-[10px] text-gray-600 font-mono text-center">
+        © 2025 MONOMONS CORP. ALL RIGHTS RESERVED.
       </div>
     </div>
   );

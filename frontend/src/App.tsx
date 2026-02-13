@@ -3,6 +3,7 @@ import Navbar from './components/Navbar';
 import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
 import PokemonWorld from './pages/PokemonWorld';
+import SpinnerPage from './pages/SpinnerPage';
 
 import DojoPage from './pages/DojoPage';
 
@@ -12,6 +13,7 @@ function App() {
       <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-900 via-[#0a0a0a] to-black text-white">
         <Routes>
           <Route path="/" element={<><Navbar /><LandingPage /></>} />
+          <Route path="/spinner" element={<><Navbar /><SpinnerPage /></>} />
           <Route element={<Dashboard />}>
             <Route path="/pokemon-world" element={<PokemonWorld />} />
             <Route path="/pokemon-world/:dojoName/:roomId" element={<DojoPage />} />

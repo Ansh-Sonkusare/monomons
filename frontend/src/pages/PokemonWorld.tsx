@@ -42,25 +42,32 @@ function PokemonWorld() {
       <canvas ref={canvasRef} className="w-full h-full block" />
 
       {nearbyDojo && (
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white p-8 rounded-xl border border-white/20 backdrop-blur-md shadow-2xl max-w-md w-full text-center z-50 animate-in fade-in zoom-in duration-200">
-          <h2 className="text-2xl font-bold mb-2 text-yellow-400">{nearbyDojo.name}</h2>
-          <p className="mb-6 text-gray-300">
-            A Pokémon battle is about to begin! <br />
-            Do you want to enter and place a bet?
-          </p>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-[#1a1a1a] border-4 border-white p-6 shadow-[8px_8px_0px_rgba(0,0,0,0.8)] max-w-md w-full text-center z-50 font-pixel">
+          <div className="border-b-2 border-white pb-4 mb-4">
+              <h2 className="text-xl font-bold text-yellow-400 uppercase tracking-widest text-shadow-sm mb-1">{nearbyDojo.name}</h2>
+              <p className="text-[10px] text-gray-500 font-mono">LOCATION FOUND</p>
+          </div>
+          
+          <div className="mb-8">
+              <p className="text-white text-xs leading-relaxed mb-4">
+                A Pokémon battle is about to begin! <br />
+                Do you want to enter and place a bet?
+              </p>
+              <div className="w-16 h-1 bg-white mx-auto animate-pulse"></div>
+          </div>
 
           <div className="flex gap-4 justify-center">
             <button
               onClick={() => setNearbyDojo(null)}
-              className="px-6 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors font-semibold"
+              className="px-6 py-3 bg-[#333] text-white text-xs border-2 border-white shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none hover:bg-[#444] uppercase transition-none"
             >
-              No, leave
+              RUN AWAY
             </button>
             <button
               onClick={handleJoinDojo}
-              className="px-6 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 text-black transition-colors font-bold shadow-lg shadow-yellow-500/20"
+              className="px-6 py-3 bg-blue-600 text-white text-xs border-2 border-white shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none hover:bg-blue-500 uppercase transition-none animate-pulse"
             >
-              Yes, Enter!
+              ENTER DOJO
             </button>
           </div>
         </div>

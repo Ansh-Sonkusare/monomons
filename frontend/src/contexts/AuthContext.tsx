@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import { useAccount, useSignMessage } from "wagmi";
+import { logger } from "../utils/logger";
 
 interface AuthContextType {
   token: string | null;
@@ -68,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem("auth_token", jwtToken);
       setToken(jwtToken);
     } catch (error) {
-      console.error("Login error:", error);
+      logger.error('auth', 'Login error', error);
       throw error;
     } finally {
       setIsLoading(false);

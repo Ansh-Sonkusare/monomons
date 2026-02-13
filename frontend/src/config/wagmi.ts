@@ -1,11 +1,12 @@
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import { http } from "wagmi";
 import { defineChain } from "@reown/appkit/networks";
+import { logger } from "../utils/logger";
 
 export const projectId = import.meta.env.VITE_REOWN_PROJECT_ID || "";
 
 if (!projectId) {
-  console.warn("VITE_REOWN_PROJECT_ID is not set");
+  logger.warn('config', 'VITE_REOWN_PROJECT_ID is not set');
 }
 
 // Define Monad Testnet manually to ensure correct connection

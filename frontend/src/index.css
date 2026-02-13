@@ -1,17 +1,18 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
 @theme {
-  --font-space: 'Space Grotesk', sans-serif;
+  --font-pixel: 'Press Start 2P', cursive;
 }
 
 body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
-  font-family: 'Space Grotesk', sans-serif;
-  background-color: #000;
-  color: #fff;
+  font-family: 'Press Start 2P', cursive;
+  background-color: #202028; /* Gameboy dark grey */
+  color: #e0f8cf; /* Gameboy light green/white */
+  image-rendering: pixelated;
 }
 
 canvas {
@@ -23,4 +24,43 @@ canvas {
 #root {
   width: 100vw;
   height: 100vh;
+}
+
+@keyframes grid-scroll {
+  0% { background-position: 0 0; }
+  100% { background-position: 40px 40px; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes typing {
+  from { width: 0 }
+  to { width: 100% }
+}
+
+@keyframes blink-caret {
+  from, to { border-color: transparent }
+  50% { border-color: white; }
+}
+
+.blink {
+  animation: blink 1s step-end infinite;
+}
+
+.typing-effect {
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 2px solid white;
+  animation: typing 3.5s steps(40, end), blink-caret .75s step-end infinite;
+}
+
+.text-shadow-sm {
+  text-shadow: 2px 2px 0px #000;
+}
+
+.text-shadow-lg {
+  text-shadow: 4px 4px 0px #000;
 }

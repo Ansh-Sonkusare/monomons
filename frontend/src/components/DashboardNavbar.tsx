@@ -1,6 +1,8 @@
+import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useAccount, useDisconnect } from 'wagmi';
 import { useAppKit } from '@reown/appkit/react';
+import { logger } from '../utils/logger';
 
 function DashboardNavbar() {
   const { isAuthenticated, login, logout, isLoading } = useAuth();
@@ -15,7 +17,7 @@ function DashboardNavbar() {
       try {
         await login();
       } catch (error) {
-        console.error('Authentication failed:', error);
+        logger.error('auth', 'Authentication failed', error);
       }
     }
   };
@@ -31,7 +33,11 @@ function DashboardNavbar() {
 
   return (
     <nav className="fixed top-0 w-full h-1 z-50 flex items-start justify-end">
-      <div className="bg-black/30 backdrop-blur-md border border-white/20 px-3 py-2 shadow-lg">
+      <div className="bg-black/30 backdrop-blur-md border border-white/20 px-3 py-2 shadow-lg flex items-center gap-4">
+        <Link to="/spinner" className="text-white/80 hover:text-white text-xs font-bold uppercase tracking-wider transition-colors">
+          Spinner
+        </Link>
+        <div className="w-px h-4 bg-white/20"></div>
         <div className="flex items-center gap-4">
         {isAuthenticated ? (
           <>

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useAccount, useDisconnect } from 'wagmi';
 import { useAppKit } from '@reown/appkit/react';
+import { logger } from '../utils/logger';
 
 function Navbar() {
   const { isAuthenticated, login, logout, isLoading } = useAuth();
@@ -11,14 +12,12 @@ function Navbar() {
 
   const handleConnect = async () => {
     if (!isConnected) {
-      // Open wallet connection modal
       await open();
     } else if (isConnected && !isAuthenticated) {
-      // Connected but not authenticated, sign message
       try {
         await login();
       } catch (error) {
-        console.error('Authentication failed:', error);
+        logger.error('auth', 'Authentication failed', error);
       }
     }
   };
@@ -33,31 +32,36 @@ function Navbar() {
   };
 
   return (
-    <nav className="fixed top-0 w-full h-20 z-50 transition-all duration-300 bg-black/50 backdrop-blur-md border-b border-white/10 flex items-center justify-center px-4">
-      <div className="w-full max-w-7xl flex justify-between items-center h-full">
-        <Link to="/" className="flex items-center gap-2 no-underline text-white font-bold text-2xl">
-          <span className="font-space tracking-wider">Monomons</span>
+    <nav className="fixed top-0 w-full h-16 z-50 bg-[#202028] border-b-4 border-black px-4 font-pixel flex items-center justify-center shadow-lg">
+      <div className="w-full max-w-7xl flex justify-between items-center">
+        <Link to="/" className="flex items-center gap-2 no-underline group">
+          <div className="w-8 h-8 bg-red-600 border-2 border-white shadow-[2px_2px_0px_black] group-hover:translate-y-1 group-hover:shadow-none transition-all"></div>
+          <span className="text-white text-lg tracking-widest text-shadow-sm group-hover:text-yellow-400">MONOMONS</span>
         </Link>
+        
         <div className="flex items-center gap-4">
+          <Link to="/spinner" className="text-white text-[10px] md:text-xs font-bold hover:text-yellow-400 tracking-wider">
+            SPINNER
+          </Link>
           {isAuthenticated ? (
             <>
-              <span className="text-white/70 text-sm">
-                {address && shortenAddress(address)}
-              </span>
+              <div className="hidden md:block bg-black border border-gray-700 px-3 py-1 text-[8px] md:text-[10px] text-green-400 font-mono">
+                ID: {address && shortenAddress(address)}
+              </div>
               <button 
                 onClick={handleDisconnect}
-                className="bg-red-600 text-white py-1 px-5 text-sm rounded-none cursor-pointer font-bold transition-all duration-300 hover:bg-red-700 hover:shadow-[0_0_15px_rgba(239,68,68,0.3)] border border-red-600 uppercase tracking-wider"
+                className="bg-red-600 text-white text-[10px] py-2 px-4 border-2 border-white shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none hover:bg-red-500 transition-none"
               >
-                Disconnect
+                LOGOUT
               </button>
             </>
           ) : (
             <button 
               onClick={handleConnect}
               disabled={isLoading}
-              className="bg-white text-black py-5 px-10 text-sm rounded-none cursor-pointer font-bold transition-all duration-300 hover:bg-white/90 hover:shadow-[0_0_15px_rgba(255,255,255,0.3)] border border-white uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-blue-600 text-white text-[10px] py-2 px-4 border-2 border-white shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none hover:bg-blue-500 transition-none disabled:bg-gray-500 disabled:cursor-not-allowed"
             >
-              {isLoading ? 'Signing...' : isConnected ? 'Sign In' : 'Connect Wallet'}
+              {isLoading ? 'LOADING...' : isConnected ? 'SIGN IN' : 'CONNECT WALLET'}
             </button>
           )}
         </div>

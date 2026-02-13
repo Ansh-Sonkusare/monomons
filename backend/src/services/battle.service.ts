@@ -555,14 +555,17 @@ export class AutoBattlerByRoom {
         this.broadcast();
 
         // Distribute Winnings
+        console.log(`[GAME END] Battle ${this.state.id} finished! Winner: ${winnerId}`);
+        console.log(`[GAME END] Starting payout distribution...`);
         try {
             await BettingService.distributeWinnings(this.state.id, winnerId as 'playerA' | 'playerB');
+            console.log(`[GAME END] Payout distribution completed successfully`);
         } catch (e) {
-            console.error("Payout error:", e);
+            console.error("[GAME END] Payout error:", e);
         }
 
         // Restart after 1 minute (60 seconds)
-        console.log(`Battle ${this.state.id} finished. Restarting in 60s...`);
+        console.log(`[GAME END] Battle ${this.state.id} finished. Restarting in 60s...`);
         setTimeout(() => {
             this.resetBattle();
         }, 60000);

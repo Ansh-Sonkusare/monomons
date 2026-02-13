@@ -1,3 +1,5 @@
+import { logger } from '../utils/logger';
+
 export interface PlayerPosition {
   x: number;
   y: number;
@@ -53,13 +55,14 @@ export interface BattleState {
     playerB: BattlePlayer;
     log: string[];
     winner?: string;
-    phase: 'waiting' | 'action' | 'finished';
+    phase: 'betting' | 'waiting' | 'action' | 'finished';
+    bettingEndTime?: number;
+    canBet: boolean;
 }
 
 export class GameWebSocket {
   private ws: WebSocket | null = null;
   private token: string;
-  private onPlayersUpdate?: (players: OnlinePlayer[]) => void;
   private onPlayerJoined?: (player: OnlinePlayer) => void;
   private onPlayerLeft?: (playerId: string) => void;
   private onPlayerMoved?: (playerId: string, position: PlayerPosition) => void;
@@ -87,7 +90,7 @@ export class GameWebSocket {
     this.ws = new WebSocket(`${wsUrl}/ws/game`);
 
     this.ws.onopen = () => {
-      console.log("WebSocket connected");
+      logger.info('websocket', 'WebSocket connected');
       this.reconnectAttempts = 0;
       this.authenticated = false;
       
@@ -103,16 +106,16 @@ export class GameWebSocket {
         const message = JSON.parse(event.data);
         this.handleMessage(message);
       } catch (error) {
-        console.error("Failed to parse WebSocket message:", error);
+        logger.error('websocket', 'Failed to parse WebSocket message', error);
       }
     };
 
     this.ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
+      logger.error('websocket', 'WebSocket error', error);
     };
 
     this.ws.onclose = () => {
-      console.log("WebSocket disconnected");
+      logger.info('websocket', 'WebSocket disconnected');
       this.authenticated = false;
       this.attemptReconnect();
     };
@@ -121,7 +124,7 @@ export class GameWebSocket {
   private handleMessage(message: any) {
     switch (message.type) {
       case "auth_success":
-        console.log("Authentication successful", message.player);
+        logger.info('websocket', 'Authentication successful', message.player);
         this.authenticated = true;
         if (this.onAuthSuccess) {
           this.onAuthSuccess(message.player, message.onlinePlayers);
@@ -133,14 +136,14 @@ export class GameWebSocket {
         break;
 
       case "player_joined":
-        console.log("Player joined:", message.player);
+        logger.info('websocket', 'Player joined', message.player);
         if (this.onPlayerJoined) {
           this.onPlayerJoined(message.player);
         }
         break;
 
       case "player_left":
-        console.log("Player left:", message.playerId);
+        logger.info('websocket', 'Player left', message.playerId);
         if (this.onPlayerLeft) {
           this.onPlayerLeft(message.playerId);
         }
@@ -174,24 +177,24 @@ export class GameWebSocket {
         break;
 
       case "error":
-        console.error("Server error:", message.error);
+        logger.error('websocket', 'Server error', message.error);
         break;
 
       default:
-        console.log("Unknown message type:", message.type);
+        logger.info('websocket', 'Unknown message type', message.type);
     }
   }
 
   private attemptReconnect() {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
-      console.log(`Reconnecting... Attempt ${this.reconnectAttempts}`);
+      logger.info('websocket', `Reconnecting... Attempt ${this.reconnectAttempts}`);
       
       setTimeout(() => {
         this.connect();
       }, this.reconnectDelay * this.reconnectAttempts);
     } else {
-      console.error("Max reconnection attempts reached");
+      logger.error('websocket', 'Max reconnection attempts reached');
     }
   }
 
@@ -224,7 +227,7 @@ export class GameWebSocket {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(data));
     } else {
-      console.warn("WebSocket is not connected");
+      logger.warn('websocket', 'WebSocket is not connected');
     }
   }
 
