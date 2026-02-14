@@ -1,28 +1,78 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { BattlePokemon, BattleState } from '../services/GameWebSocket';
 
-export const PokemonCard = ({ pokemon, isActive }: { pokemon: BattlePokemon; isActive: boolean; isOpponent?: boolean }) => {
+interface PokemonCardProps {
+    pokemon: BattlePokemon;
+    isActive: boolean;
+    damage?: number;
+    isHit?: boolean;
+}
+
+export const PokemonCard = ({ pokemon, isActive, damage, isHit }: PokemonCardProps) => {
     const hpPercent = (pokemon.stats.hp / pokemon.stats.maxHp) * 100;
 
-    const initialImg = `/poke/${encodeURIComponent(pokemon.speciesName)}.png`;
+    const pokemonId = pokemon.speciesId.toString().padStart(4, '0');
+    const initialImg = `/poke/${pokemonId}.png`;
     const candidates = [
         initialImg,
-        `/poke/${encodeURIComponent(pokemon.speciesName.toLowerCase())}.png`,
         '/poke/default.png',
     ];
     const [imgSrc, setImgSrc] = useState(initialImg);
+    const [showDamage, setShowDamage] = useState(false);
 
     useEffect(() => {
         setImgSrc(initialImg);
     }, [initialImg]);
 
+    useEffect(() => {
+        if (damage && damage > 0) {
+            setShowDamage(true);
+            const timer = setTimeout(() => setShowDamage(false), 1500);
+            return () => clearTimeout(timer);
+        }
+    }, [damage]);
+
     return (
-        <div className={`
+        <motion.div 
+            animate={isHit ? {
+                x: [0, -8, 8, -8, 8, 0],
+                filter: ['brightness(1)', 'brightness(2)', 'brightness(1)']
+            } : {}}
+            transition={{ duration: 0.3 }}
+            className={`
             relative w-80 bg-[#222] border-4 border-white shadow-[8px_8px_0px_rgba(0,0,0,0.8)]
             flex flex-col p-2 gap-2
             ${isActive ? '' : 'opacity-60'}
         `}>
+            {/* Damage Number Popup */}
+            <AnimatePresence>
+                {showDamage && damage && damage > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, y: -40, scale: 1.2 }}
+                        exit={{ opacity: 0, y: -60 }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none"
+                    >
+                        <span className="text-3xl font-black text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]" 
+                              style={{ WebkitTextStroke: '2px white' }}>
+                            -{damage}
+                        </span>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Hit Flash Effect */}
+            {isHit && (
+                <motion.div
+                    initial={{ opacity: 0.8 }}
+                    animate={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute inset-0 bg-white z-40 pointer-events-none"
+                />
+            )}
+
             {/* Header: Name & Type (Trading Card Style) */}
             <div className="flex justify-between items-center bg-[#111] px-2 py-1 border border-gray-600">
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider">{pokemon.speciesName}</h3>
@@ -122,7 +172,7 @@ export const PokemonCard = ({ pokemon, isActive }: { pokemon: BattlePokemon; isA
                     </div>
                 </div>
             )}
-        </div>
+        </motion.div>
     );
 };
 
@@ -165,27 +215,6 @@ const PhaseIndicator = ({ phase, turn, bettingEndTime }: { phase: string; turn: 
         </div>
     );
 };
-
-const TypewriterText = ({ text }: { text: string }) => {
-    const [displayedText, setDisplayedText] = useState('');
-    
-    useEffect(() => {
-        setDisplayedText('');
-        let i = 0;
-        const timer = setInterval(() => {
-            if (i < text.length) {
-                setDisplayedText(() => text.substring(0, i + 1));
-                i++;
-            } else {
-                clearInterval(timer);
-            }
-        }, 20);
-        return () => clearInterval(timer);
-    }, [text]);
-
-    return <span>{displayedText}</span>;
-};
-
 
 export const PokemonSpinner = () => {
     const [spinning, setSpinning] = useState(false);
@@ -264,6 +293,63 @@ export const PokemonSpinner = () => {
     );
 };
 
+interface BattleEvent {
+    target: 'A' | 'B';
+    damage: number;
+    timestamp: number;
+}
+
+function useBattleEvents(log: string[], activeAName: string, activeBName: string) {
+    const [events, setEvents] = useState<BattleEvent[]>([]);
+    const [hitA, setHitA] = useState(false);
+    const [hitB, setHitB] = useState(false);
+    const lastLogLength = useRef(log.length);
+
+    useEffect(() => {
+        if (log.length > lastLogLength.current) {
+            const newEntries = log.slice(lastLogLength.current);
+            const now = Date.now();
+            
+            newEntries.forEach(entry => {
+                // Parse damage from log entries like "Pikachu used Thunderbolt! (43 DMG)"
+                const damageMatch = entry.match(/\((\d+)\s*DMG\)/i);
+                const damage = damageMatch ? parseInt(damageMatch[1]) : 0;
+                
+                if (damage > 0) {
+                    // Determine who was hit based on entry context
+                    // If entry mentions A attacking, B is hit
+                    // If entry mentions B attacking, A is hit
+                    const isAAttacking = entry.toLowerCase().includes(activeAName.toLowerCase()) && 
+                                         (entry.toLowerCase().includes('used') || entry.toLowerCase().includes('dealt'));
+                    const isBAttacking = entry.toLowerCase().includes(activeBName.toLowerCase()) && 
+                                         (entry.toLowerCase().includes('used') || entry.toLowerCase().includes('dealt'));
+                    
+                    if (isAAttacking) {
+                        setEvents(prev => [...prev, { target: 'B', damage, timestamp: now }]);
+                        setHitB(true);
+                        setTimeout(() => setHitB(false), 300);
+                    } else if (isBAttacking) {
+                        setEvents(prev => [...prev, { target: 'A', damage, timestamp: now }]);
+                        setHitA(true);
+                        setTimeout(() => setHitA(false), 300);
+                    }
+                }
+            });
+            
+            // Cleanup old events
+            setEvents(prev => prev.filter(e => now - e.timestamp < 2000));
+        }
+        lastLogLength.current = log.length;
+    }, [log, activeAName, activeBName]);
+
+    const getDamage = (target: 'A' | 'B') => {
+        const event = events.find(e => e.target === target);
+        return event?.damage || 0;
+    };
+
+    return { damageA: getDamage('A'), damageB: getDamage('B'), hitA, hitB };
+}
+
 export const BattleScene = ({ state }: { state: BattleState }) => {
     const { playerA, playerB, log } = state;
     
@@ -271,6 +357,7 @@ export const BattleScene = ({ state }: { state: BattleState }) => {
 
     const activeA = playerA.team[playerA.activePokemonIndex];
     const activeB = playerB.team[playerB.activePokemonIndex];
+    const { damageA, damageB, hitA, hitB } = useBattleEvents(log, activeA?.speciesName || '', activeB?.speciesName || '');
     
     return (
         <div className="w-full h-full relative bg-[#202028] overflow-hidden font-pixel select-none">
@@ -308,7 +395,7 @@ export const BattleScene = ({ state }: { state: BattleState }) => {
                     <div className="relative">
                         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-48 h-12 bg-black/40 rounded-[50%] blur-sm scale-y-50"></div>
                         <div className="relative z-10">
-                            {activeB && <PokemonCard pokemon={activeB} isActive={true} isOpponent={true} />}
+                            {activeB && <PokemonCard pokemon={activeB} isActive={true} damage={damageB} isHit={hitB} />}
                         </div>
                     </div>
                 </div>
@@ -319,7 +406,7 @@ export const BattleScene = ({ state }: { state: BattleState }) => {
                     <div className="relative z-10">
                         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-48 h-12 bg-black/40 rounded-[50%] blur-sm scale-y-50"></div>
                         <div className="relative z-10">
-                            {activeA && <PokemonCard pokemon={activeA} isActive={true} />}
+                            {activeA && <PokemonCard pokemon={activeA} isActive={true} damage={damageA} isHit={hitA} />}
                         </div>
                     </div>
 
@@ -335,44 +422,51 @@ export const BattleScene = ({ state }: { state: BattleState }) => {
                 </div>
             </div>
 
-            {/* Overlay Text Box (Classic RPG Style) */}
-            <div className="absolute bottom-4 left-4 right-4 h-32 z-40">
-                <div className="h-full bg-[#1a1a1a]/95 border-4 border-white p-4 flex gap-4 shadow-[8px_8px_0px_rgba(0,0,0,0.8)] relative">
-                    {/* Animated Cursor */}
-
-                    {/* Main Log Area */}
-                    <div className="flex-1 overflow-hidden relative">
-                        <AnimatePresence mode="wait">
-                            {log.length > 0 ? (
-                                <motion.div 
-                                    key={log[log.length - 1]}
-                                    initial={{ opacity: 1 }}
-                                    animate={{ opacity: 1 }}
-                                    className="h-full flex flex-col justify-start"
-                                >
-                                    <p className="text-xs md:text-sm text-white font-bold leading-relaxed uppercase tracking-wide font-pixel text-shadow-sm">
-                                        <span className="text-yellow-400 mr-2">*</span>
-                                        <TypewriterText text={log[log.length - 1]} />
-                                    </p>
-                                </motion.div>
-                            ) : (
-                                <p className="text-gray-500 text-xs uppercase typing-effect">WAITING FOR COMMAND...</p>
-                            )}
-                        </AnimatePresence>
+            {/* Battle Log - RPG Style */}
+            <div className="absolute bottom-4 left-4 right-4 z-40">
+                <div className="bg-[#1a1a1a]/95 border-4 border-white shadow-[8px_8px_0px_rgba(0,0,0,0.8)]">
+                    {/* Phase Indicator Bar */}
+                    <div className="border-b-2 border-gray-600 px-3 py-1.5 flex justify-between items-center bg-black/30">
+                        <span className="text-[10px] text-gray-400 font-mono tracking-wider">BATTLE LOG</span>
+                        <span className={`text-[10px] font-bold tracking-wider ${
+                            state.phase === 'betting' ? 'text-green-400' : 
+                            state.phase === 'waiting' ? 'text-yellow-400' : 
+                            state.phase === 'action' ? 'text-red-400' : 'text-purple-400'
+                        }`}>
+                            {state.phase === 'betting' ? '▶ BETTING OPEN' : 
+                             state.phase === 'waiting' ? '◐ PREPARING' : 
+                             state.phase === 'action' ? '⚔ COMBAT' : '◼ FINISHED'}
+                        </span>
                     </div>
-
-                    {/* Side Info Panel */}
-                    <div className="w-1/4 border-l-2 border-gray-600 pl-4 flex flex-col justify-between text-[10px] text-gray-400 font-mono">
-                        <div>
-                            <div className="text-yellow-600 mb-1">LAST ACTION:</div>
-                            <div className="text-white truncate">{log.length > 1 ? log[log.length - 2] : '-'}</div>
-                        </div>
-                        <div className="flex justify-between items-end">
-                            <span>PHASE:</span>
-                            <span className={`font-bold ${state.phase === 'betting' ? 'text-green-400' : 'text-red-400'}`}>
-                                {state.phase.toUpperCase()}
-                            </span>
-                        </div>
+                    
+                    {/* Log Content */}
+                    <div className="p-3 h-24 overflow-hidden relative">
+                        <AnimatePresence mode="popLayout">
+                            {log.slice(-3).map((entry, idx) => (
+                                <motion.div
+                                    key={`${entry}-${log.length - idx}`}
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    transition={{ delay: idx * 0.05 }}
+                                    className={`text-xs font-bold leading-tight uppercase tracking-wide font-pixel mb-1.5 ${
+                                        idx === 0 ? 'text-white' : 'text-gray-500'
+                                    }`}
+                                >
+                                    {idx === 0 && <span className="text-yellow-400 mr-1.5">▸</span>}
+                                    {entry}
+                                </motion.div>
+                            ))}
+                        </AnimatePresence>
+                        {log.length === 0 && (
+                            <motion.p 
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="text-gray-500 text-xs uppercase tracking-wider animate-pulse"
+                            >
+                                Waiting for battle to start...
+                            </motion.p>
+                        )}
                     </div>
                 </div>
             </div>

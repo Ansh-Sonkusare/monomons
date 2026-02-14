@@ -1,7 +1,6 @@
 # ./.tmuxinator.yml
 name: monomons
-root: /home/teak/code/monomons
-
+root: /Users/anshsonkusare/code/monomons
 windows:
   - editor:
       layout: main-vertical

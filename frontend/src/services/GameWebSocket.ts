@@ -24,6 +24,7 @@ export interface ChatMessage {
 export interface BattlePokemon {
     id: string; 
     speciesName: string;
+    speciesId: number;
     types: string[];
     stats: {
         hp: number;
