@@ -110,5 +110,9 @@ export const ABILITIES_LIBRARY: BattleAbility[] = [
     { name: 'Stench', effect: 'flinch_chance', value: 0.1 },
     { name: 'Run Away', effect: 'always_escape', value: 1 },
     { name: 'Pickup', effect: 'pickup_items', value: 1 },
-    { name: 'Honey Gather', effect: 'gather_honey', value: 1 }
+    { name: 'Honey Gather', effect: 'gather_honey', value: 1 },
+    // Accuracy abilities
+    { name: 'Compound Eyes', effect: 'accuracy_boost', value: 1.3 },
+    { name: 'Huge Power', effect: 'attack_flat_boost', value: 2.0 },
+    { name: 'Pure Power', effect: 'attack_flat_boost', value: 2.0 }
 ];
