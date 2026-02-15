@@ -15,47 +15,51 @@ interface Bet {
   multiplier: number;
   status: 'pending' | 'won' | 'lost';
   checked?: boolean;
+  agentId?: string;
+  agentColor?: string;
 }
 
-// Config Constants - Optimized for BTC
-const CELL_WIDTH = 100;
-const CELL_HEIGHT = 60;
-const PRICE_STEP = 25; // $25 increments
+interface AgentBet {
+  agentId: string;
+  agentColor: string;
+  agentName: string;
+  colIndex: number;
+  rowIndex: number;
+  amount: number;
+  multiplier: number;
+  status: 'pending' | 'won' | 'lost';
+}
+
+// Config Constants - Optimized for BTC ($20-30 increments)
+const CELL_WIDTH = 60;
+const CELL_HEIGHT = 30;
+const PRICE_STEP = 25; // $25 increments for BTC price
 const HEAD_SCREEN_X = 250;
 const TIME_PER_CELL = 1.0;
 
-function getSplinePath(points: { x: number, y: number }[]) {
-  if (points.length === 0) return "";
-  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
-  
-  let d = `M ${points[0].x} ${points[0].y}`;
-  
-  for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[i === 0 ? 0 : i - 1];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = points[i + 2] || p2;
-    
-    const cp1x = p1.x + (p2.x - p0.x) / 6;
-    const cp1y = p1.y + (p2.y - p0.y) / 6;
-    const cp2x = p2.x - (p3.x - p1.x) / 6;
-    const cp2y = p2.y - (p3.y - p1.y) / 6;
-    
-    d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
-  }
-  
-  return d;
-}
+// Agent colors for display
+const AGENT_COLORS = {
+  alpha: '#FF4444',
+  beta: '#4444FF', 
+  gamma: '#44FF44',
+  delta: '#FFAA00'
+};
 
-function BettingGrid({ currentPrice, balance, onBetResult, priceHistory }: {
+export function BettingGrid({ 
+  currentPrice, 
+  balance, 
+  onBetResult, 
+  priceHistory,
+  agentBets = [] 
+}: {
   currentPrice: number;
   balance: number;
   onBetResult: (won: boolean, amount: number, multiplier: number) => void;
   priceHistory: PricePoint[];
+  agentBets?: AgentBet[];
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const connectorPathRef = useRef<SVGPathElement>(null);
   
   const cameraXRef = useRef(0);
   const layoutRef = useRef<number | undefined>(undefined);
@@ -67,7 +71,6 @@ function BettingGrid({ currentPrice, balance, onBetResult, priceHistory }: {
   const betsRef = useRef<Bet[]>([]);
   const [dimensions, setDimensions] = useState({ width: 1200, height: 800 });
   const [cameraPrice, setCameraPrice] = useState(currentPrice);
-  const lastPointRef = useRef<{ x: number, y: number } | null>(null);
 
   useEffect(() => { betsRef.current = bets; }, [bets]);
 
@@ -109,6 +112,24 @@ function BettingGrid({ currentPrice, balance, onBetResult, priceHistory }: {
     }
   }, [priceHistory.length, currentPrice]);
 
+  // Merge user bets with agent bets
+  const allBets = useMemo(() => {
+    const userBets = betsRef.current;
+    const formattedAgentBets: Bet[] = agentBets.map((ab, idx) => ({
+      id: `agent-${ab.agentId}-${idx}`,
+      colIndex: ab.colIndex,
+      rowIndex: ab.rowIndex,
+      targetPrice: (ab.rowIndex + 0.5) * PRICE_STEP,
+      amount: ab.amount,
+      multiplier: ab.multiplier,
+      status: ab.status,
+      agentId: ab.agentId,
+      agentColor: ab.agentColor,
+      checked: ab.status !== 'pending'
+    }));
+    return [...userBets, ...formattedAgentBets];
+  }, [bets, agentBets]);
+
   const centerY = dimensions.height / 2;
   const centerRow = Math.floor(cameraPrice / PRICE_STEP);
 
@@ -125,11 +146,13 @@ function BettingGrid({ currentPrice, balance, onBetResult, priceHistory }: {
       cameraXRef.current += (targetCamera - cameraXRef.current) * 0.15;
       
       const headWorldX = currentHeadX;
-      const pendingBets = betsRef.current.filter(b => b.status === 'pending' && !b.checked);
+      const pendingBets = allBets.filter(b => b.status === 'pending' && !b.checked);
       let stateChanged = false;
-      let newBets = [...betsRef.current];
+      let newBets = [...allBets];
       
       pendingBets.forEach(bet => {
+        if (bet.agentId) return; // Skip agent bets - backend handles those
+        
         const betCenterWorldX = (bet.colIndex * CELL_WIDTH) + (CELL_WIDTH / 2);
         
         if (headWorldX >= betCenterWorldX) {
@@ -148,24 +171,8 @@ function BettingGrid({ currentPrice, balance, onBetResult, priceHistory }: {
         }
       });
       
-      if (stateChanged) setBets(newBets);
+      if (stateChanged) setBets(newBets.filter(b => !b.agentId)); // Only update user bets
       
-      if (connectorPathRef.current && lastPointRef.current && priceHistory.length >= 2) {
-        const lp = lastPointRef.current;
-        const lastPoint = priceHistory[priceHistory.length - 1];
-        const prevPoint = priceHistory[priceHistory.length - 2];
-        const priceVelocity = (lastPoint.price - prevPoint.price) / TIME_PER_CELL;
-        
-        const extrapolatedPrice = lastPoint.price + (priceVelocity * clampedTime);
-        const blendedPrice = extrapolatedPrice * 0.7 + currentPrice * 0.3;
-        smoothHeadPriceRef.current = blendedPrice;
-        
-        const diff = blendedPrice - cameraPrice;
-        const headY = centerY - (diff / PRICE_STEP * CELL_HEIGHT);
-        
-        const d = `M ${lp.x} ${lp.y} L ${currentHeadX} ${headY}`;
-        connectorPathRef.current.setAttribute('d', d);
-      }
     }
     
     if (canvasRef.current) {
@@ -173,7 +180,7 @@ function BettingGrid({ currentPrice, balance, onBetResult, priceHistory }: {
     }
     
     layoutRef.current = requestAnimationFrame(animate);
-  }, [priceHistory, currentPrice, cameraPrice, centerY, onBetResult]);
+  }, [priceHistory, currentPrice, cameraPrice, onBetResult, allBets]);
 
   useEffect(() => {
     layoutRef.current = requestAnimationFrame(animate);
@@ -188,7 +195,7 @@ function BettingGrid({ currentPrice, balance, onBetResult, priceHistory }: {
     
     if (betWorldX <= headWorldX) return;
     if (balance < 1) return;
-    if (bets.some(b => b.colIndex === colIndex && b.rowIndex === rowIndex)) return;
+    if (allBets.some(b => b.colIndex === colIndex && b.rowIndex === rowIndex)) return;
     
     const currentRow = Math.floor(currentPrice / PRICE_STEP);
     const rowDist = Math.abs(rowIndex - currentRow);
@@ -212,36 +219,103 @@ function BettingGrid({ currentPrice, balance, onBetResult, priceHistory }: {
   };
 
   const currentDataTick = priceHistory.length;
-  const startCol = Math.max(0, currentDataTick - 8);
-  const endCol = currentDataTick + 20;
+  const startCol = Math.max(0, currentDataTick - 12);
+  const endCol = currentDataTick + 30;
   
   const colsToRender = [];
   for (let c = startCol; c <= endCol; c++) colsToRender.push(c);
   
-  const visibleRows = 12;
+  const visibleRows = 18;
   const rowsToRender: number[] = [];
   for (let r = centerRow - visibleRows; r <= centerRow + visibleRows; r++) {
     rowsToRender.push(r);
   }
 
+  // Group bets by cell for display
+  const betsByCell = useMemo(() => {
+    const map = new Map<string, Bet[]>();
+    allBets.forEach(bet => {
+      const key = `${bet.colIndex}-${bet.rowIndex}`;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(bet);
+    });
+    return map;
+  }, [allBets]);
+
   const historyPoints = useMemo(() => {
-    return priceHistory.map((pt, i) => {
-      const x = (i * CELL_WIDTH) + (CELL_WIDTH / 2);
+    // Only process visible history for performance
+    const visibleStart = Math.max(0, currentDataTick - 20);
+    const visibleHistory = priceHistory.slice(visibleStart, currentDataTick);
+    
+    if (visibleHistory.length < 2) {
+      return visibleHistory.map((pt, i) => {
+        const actualIndex = visibleStart + i;
+        const x = (actualIndex * CELL_WIDTH) + (CELL_WIDTH / 2);
+        const diff = pt.price - cameraPrice;
+        const y = centerY - (diff / PRICE_STEP * CELL_HEIGHT);
+        return { x, y };
+      });
+    }
+
+    // Create smooth interpolated points using cubic bezier
+    const smoothPoints: { x: number; y: number }[] = [];
+    
+    for (let i = 0; i < visibleHistory.length; i++) {
+      const actualIndex = visibleStart + i;
+      const pt = visibleHistory[i];
+      const x = (actualIndex * CELL_WIDTH) + (CELL_WIDTH / 2);
       const diff = pt.price - cameraPrice;
       const y = centerY - (diff / PRICE_STEP * CELL_HEIGHT);
-      return { x, y };
-    });
-  }, [priceHistory, cameraPrice, centerY]);
-
-  useEffect(() => {
-    if (historyPoints.length > 0) {
-      lastPointRef.current = historyPoints[historyPoints.length - 1];
-    } else {
-      lastPointRef.current = { x: 0, y: centerY };
+      
+      if (i === 0) {
+        smoothPoints.push({ x, y });
+      } else {
+        const prevPt = visibleHistory[i - 1];
+        const prevActualIndex = visibleStart + i - 1;
+        const prevX = (prevActualIndex * CELL_WIDTH) + (CELL_WIDTH / 2);
+        const prevDiff = prevPt.price - cameraPrice;
+        const prevY = centerY - (prevDiff / PRICE_STEP * CELL_HEIGHT);
+        
+        // Get control points for cubic bezier curve
+        const p0 = i >= 2 ? visibleHistory[i - 2] : prevPt;
+        const p0ActualIndex = i >= 2 ? visibleStart + i - 2 : prevActualIndex;
+        const p0X = (p0ActualIndex * CELL_WIDTH) + (CELL_WIDTH / 2);
+        const p0Diff = p0.price - cameraPrice;
+        const p0Y = centerY - (p0Diff / PRICE_STEP * CELL_HEIGHT);
+        
+        const p3 = i < visibleHistory.length - 1 ? visibleHistory[i + 1] : pt;
+        const p3ActualIndex = i < visibleHistory.length - 1 ? visibleStart + i + 1 : actualIndex;
+        const p3X = (p3ActualIndex * CELL_WIDTH) + (CELL_WIDTH / 2);
+        const p3Diff = p3.price - cameraPrice;
+        const p3Y = centerY - (p3Diff / PRICE_STEP * CELL_HEIGHT);
+        
+        // Calculate control points for smooth curve (Catmull-Rom to Bezier)
+        const tension = 0.3;
+        const cp1x = prevX + (x - p0X) * tension;
+        const cp1y = prevY + (y - p0Y) * tension;
+        const cp2x = x - (p3X - prevX) * tension;
+        const cp2y = y - (p3Y - prevY) * tension;
+        
+        // Generate points along the bezier curve
+        const segments = 4;
+        for (let t = 1; t <= segments; t++) {
+          const ratio = t / segments;
+          const mt = 1 - ratio;
+          const mt2 = mt * mt;
+          const mt3 = mt2 * mt;
+          const t2 = ratio * ratio;
+          const t3 = t2 * ratio;
+          
+          const bx = mt3 * prevX + 3 * mt2 * ratio * cp1x + 3 * mt * t2 * cp2x + t3 * x;
+          const by = mt3 * prevY + 3 * mt2 * ratio * cp1y + 3 * mt * t2 * cp2y + t3 * y;
+          
+          smoothPoints.push({ x: bx, y: by });
+        }
+      }
     }
-  }, [historyPoints, centerY]);
-
-  const historyPathD = useMemo(() => getSplinePath(historyPoints), [historyPoints]);
+    
+    return smoothPoints;
+  }, [priceHistory, cameraPrice, centerY, currentDataTick]);
 
   return (
     <div 
@@ -274,74 +348,179 @@ function BettingGrid({ currentPrice, balance, onBetResult, priceHistory }: {
         </div>
       </div>
 
-      <div className="absolute inset-0 top-16">
-        <svg 
-          className="absolute inset-0 pointer-events-none z-20"
-          style={{ width: '100%', height: '100%' }}
-        >
-          <path
-            d={historyPathD}
-            fill="none"
-            stroke="rgb(59, 130, 246)"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ filter: 'drop-shadow(0 0 8px rgba(59, 130, 246, 0.6))' }}
-          />
-          
-          <path
-            ref={connectorPathRef}
-            fill="none"
-            stroke="rgb(59, 130, 246)"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeDasharray="5,5"
-            opacity="0.6"
-          />
-          
-          <circle
-            cx={HEAD_SCREEN_X}
-            cy={centerY}
-            r="8"
-            fill="rgb(59, 130, 246)"
-            stroke="white"
-            strokeWidth="2"
-            style={{ filter: 'drop-shadow(0 0 12px rgba(59, 130, 246, 0.8))' }}
-          />
-        </svg>
+      <div className="absolute inset-0 top-16 overflow-hidden">
+        {/* Main grid area */}
+        <div className="absolute inset-0 bottom-8">
+          {/* Fixed price labels on the right */}
+          <div className="absolute right-0 top-0 bottom-0 w-24 pointer-events-none z-30">
+            {rowsToRender.map((rowIdx) => {
+              const price = rowIdx * PRICE_STEP;
+              const diff = price - cameraPrice;
+              const y = centerY - (diff / PRICE_STEP * CELL_HEIGHT);
+              const isCurrentPriceRow = Math.abs(price - currentPrice) < PRICE_STEP;
+              
+              return (
+                <div
+                  key={rowIdx}
+                  className="absolute right-4 transform -translate-y-1/2"
+                  style={{ top: `${y}px` }}
+                >
+                  <div className={`
+                    text-xs font-mono px-2 py-1 rounded whitespace-nowrap shadow-lg
+                    ${isCurrentPriceRow 
+                      ? 'bg-orange-500/90 text-white font-bold border border-orange-300' 
+                      : 'text-white bg-slate-800/90 border border-slate-600/50'
+                    }
+                  `}>
+                    ${price.toFixed(2)}
+                  </div>
+                </div>
+            );
+          })}
+        </div>
 
-        <div 
-          ref={canvasRef}
-          className="absolute left-0 top-0 will-change-transform"
-          style={{ height: '100%' }}
-        >
-          {colsToRender.map(colIdx => {
-            const x = colIdx * CELL_WIDTH;
+        {/* Time axis at bottom */}
+        <div className="absolute left-0 right-0 bottom-0 h-8 bg-slate-900/90 border-t border-slate-700/50 pointer-events-none z-30 overflow-hidden">
+          <div 
+            className="absolute h-full"
+            style={{ transform: `translateX(${-cameraXRef.current}px)` }}
+          >
+            {colsToRender.map(colIdx => {
+              const x = colIdx * CELL_WIDTH;
+              const isDataColumn = colIdx < priceHistory.length;
+              
+              let timeLabel = '';
+              if (isDataColumn && priceHistory[colIdx]) {
+                const timeStr = priceHistory[colIdx].time;
+                try {
+                  const date = new Date(timeStr);
+                  if (!isNaN(date.getTime())) {
+                    timeLabel = date.toLocaleTimeString('en-US', { 
+                      hour: '2-digit', 
+                      minute: '2-digit', 
+                      second: '2-digit',
+                      hour12: false
+                    });
+                  }
+                } catch (e) {
+                  console.error('Invalid date:', timeStr);
+                }
+              } else if (priceHistory.length > 0 && colIdx >= priceHistory.length) {
+                // Calculate future time based on TIME_PER_CELL
+                try {
+                  const lastTime = new Date(priceHistory[priceHistory.length - 1].time);
+                  if (!isNaN(lastTime.getTime())) {
+                    const secondsAhead = (colIdx - priceHistory.length + 1) * TIME_PER_CELL;
+                    const futureTime = new Date(lastTime.getTime() + secondsAhead * 1000);
+                    timeLabel = futureTime.toLocaleTimeString('en-US', { 
+                      hour: '2-digit', 
+                      minute: '2-digit', 
+                      second: '2-digit',
+                      hour12: false
+                    });
+                  }
+                } catch (e) {
+                  // Skip invalid future times
+                }
+              }
+              
+              return timeLabel && colIdx % 3 === 0 ? (
+                <div
+                  key={colIdx}
+                  className={`absolute top-1/2 -translate-y-1/2 text-[10px] font-mono whitespace-nowrap ${
+                    isDataColumn ? 'text-slate-300' : 'text-slate-500 italic'
+                  }`}
+                  style={{ left: `${x + CELL_WIDTH / 2}px`, transform: 'translate(-50%, -50%)' }}
+                >
+                  {timeLabel}
+                </div>
+              ) : null;
+            })}
+          </div>
+        </div>
+      </div>
+
+          {/* Gradient overlay */}
+          <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-slate-900 to-transparent pointer-events-none z-10" />
+
+          <div 
+            ref={canvasRef}
+            className="absolute left-0 top-0 will-change-transform"
+            style={{ height: '100%' }}
+          >
+            {/* Price line visualization */}
+            <div className="absolute left-0 top-0 pointer-events-none z-20" style={{ height: '100%' }}>
+              {historyPoints.map((point, i) => {
+                if (i === 0) return null;
+                const prevPoint = historyPoints[i - 1];
+                
+                const length = Math.sqrt(
+                  Math.pow(point.x - prevPoint.x, 2) + 
+                  Math.pow(point.y - prevPoint.y, 2)
+                );
+                const angle = Math.atan2(point.y - prevPoint.y, point.x - prevPoint.x) * 180 / Math.PI;
+                
+                return (
+                  <div
+                    key={i}
+                    className="absolute"
+                    style={{
+                      left: `${prevPoint.x}px`,
+                      top: `${prevPoint.y}px`,
+                      width: `${length}px`,
+                      height: '3px',
+                      background: 'linear-gradient(90deg, rgba(59, 130, 246, 0.9), rgba(59, 130, 246, 1))',
+                      transform: `rotate(${angle}deg)`,
+                      transformOrigin: '0 50%',
+                      boxShadow: '0 0 8px rgba(59, 130, 246, 0.4)',
+                      borderRadius: '1.5px',
+                    }}
+                  />
+                );
+              })}
+              
+              {/* Current price indicator circle - only show at actual last data point */}
+              {priceHistory.length > 0 && historyPoints.length > 0 && (
+                <div
+                  className="absolute rounded-full bg-blue-400 border-2 border-white -translate-x-1/2 -translate-y-1/2 animate-pulse"
+                  style={{
+                    width: '10px',
+                    height: '10px',
+                    left: `${historyPoints[historyPoints.length - 1].x}px`,
+                    top: `${historyPoints[historyPoints.length - 1].y}px`,
+                    boxShadow: '0 0 12px rgba(59, 130, 246, 0.8), 0 0 4px rgba(255, 255, 255, 0.6)',
+                  }}
+                />
+              )}
+            </div>
+
+            {colsToRender.map(colIdx => {
+              const x = colIdx * CELL_WIDTH;
             const isDataColumn = colIdx < priceHistory.length;
             const timeLabel = isDataColumn && priceHistory[colIdx] 
               ? new Date(priceHistory[colIdx].time).toLocaleTimeString('en-US', { 
-                  hour: '2-digit', minute: '2-digit', second: '2-digit' 
+                  hour: '2-digit', 
+                  minute: '2-digit', 
+                  second: '2-digit',
+                  hour12: false
                 })
               : '';
             
             return (
               <div
                 key={colIdx}
-                className="absolute top-0 bottom-0"
-                style={{ left: `${x}px`, width: `${CELL_WIDTH}px` }}
+                className="absolute top-0"
+                style={{ left: `${x}px`, width: `${CELL_WIDTH}px`, height: '100%' }}
               >
-                {timeLabel && colIdx % 2 === 0 && (
-                  <div className="absolute bottom-2 left-0 right-0 text-center text-xs text-slate-500 font-mono">
-                    {timeLabel}
-                  </div>
-                )}
                 
                 {rowsToRender.map((rowIdx) => {
                   const price = rowIdx * PRICE_STEP;
                   const diff = price - cameraPrice;
                   const y = centerY - (diff / PRICE_STEP * CELL_HEIGHT) - (CELL_HEIGHT / 2);
                   
-                  const bet = bets.find(b => b.colIndex === colIdx && b.rowIndex === rowIdx);
+                  const cellBets = betsByCell.get(`${colIdx}-${rowIdx}`) || [];
+                  const userBet = cellBets.find(b => !b.agentId);
+                  const agentBetsInCell = cellBets.filter(b => b.agentId);
                   
                   const currentRow = Math.floor(currentPrice / PRICE_STEP);
                   const rowDist = Math.abs(rowIdx - currentRow);
@@ -364,13 +543,13 @@ function BettingGrid({ currentPrice, balance, onBetResult, priceHistory }: {
                       <div
                         className={`
                           w-full h-full rounded-lg border transition-all cursor-pointer
-                          flex flex-col items-center justify-center
-                          ${bet 
-                            ? bet.status === 'won'
-                              ? 'bg-emerald-500/30 border-emerald-400 shadow-lg shadow-emerald-500/50'
-                              : bet.status === 'lost'
-                              ? 'bg-red-500/30 border-red-400 shadow-lg shadow-red-500/50'
-                              : 'bg-blue-500/30 border-blue-400 shadow-lg shadow-blue-500/50'
+                          flex flex-col items-center justify-center gap-0 relative
+                          ${userBet 
+                            ? userBet.status === 'won'
+                              ? 'bg-emerald-500/50 border-emerald-400 shadow-lg shadow-emerald-500/50'
+                              : userBet.status === 'lost'
+                              ? 'bg-red-500/50 border-red-400 shadow-lg shadow-red-500/50'
+                              : 'bg-blue-500/60 border-blue-300 shadow-lg shadow-blue-500/50'
                             : isCurrentPriceRow
                             ? 'bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/20'
                             : 'bg-slate-800/30 border-slate-700/30 hover:bg-slate-700/40'
@@ -378,47 +557,34 @@ function BettingGrid({ currentPrice, balance, onBetResult, priceHistory }: {
                         `}
                         onClick={() => handleCellClick(colIdx, rowIdx)}
                       >
-                        {bet ? (
+                        {userBet ? (
                           <>
-                            <div className="text-sm font-bold text-white">{bet.multiplier}x</div>
-                            <div className="text-xs text-slate-300">${bet.amount}</div>
+                            <div className="text-[9px] font-bold text-white leading-none">{userBet.multiplier}x</div>
+                            <div className="text-[8px] text-white/90 leading-none">${userBet.amount}</div>
                           </>
                         ) : (
-                          <div className="text-xs font-semibold text-slate-400">
+                          <div className="text-[9px] font-semibold text-slate-400">
                             {displayMult}x
+                          </div>
+                        )}
+                        
+                        {/* Agent bet indicators */}
+                        {agentBetsInCell.length > 0 && (
+                          <div className="absolute -top-1 -right-1 flex flex-wrap gap-0.5">
+                            {agentBetsInCell.map((bet, idx) => (
+                              <div
+                                key={idx}
+                                className="w-2 h-2 rounded-full border border-white/50"
+                                style={{ backgroundColor: bet.agentColor || '#888' }}
+                                title={`Agent bet: ${bet.multiplier}x`}
+                              />
+                            ))}
                           </div>
                         )}
                       </div>
                     </div>
                   );
                 })}
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-slate-900 to-transparent pointer-events-none z-10">
-          {Array.from({ length: 9 }, (_, i) => {
-            const offset = i - 4;
-            const price = cameraPrice + (offset * PRICE_STEP);
-            const y = centerY - (offset * CELL_HEIGHT);
-            const isCurrentPrice = Math.abs(price - currentPrice) < PRICE_STEP / 2;
-            
-            return (
-              <div
-                key={i}
-                className="absolute right-4 transform -translate-y-1/2"
-                style={{ top: `${y}px` }}
-              >
-                <div className={`
-                  text-sm font-mono px-2 py-1 rounded
-                  ${isCurrentPrice 
-                    ? 'bg-orange-500/30 text-orange-300 font-bold' 
-                    : 'text-slate-400'
-                  }
-                `}>
-                  ${price.toFixed(0)}
-                </div>
               </div>
             );
           })}
@@ -435,167 +601,6 @@ function BettingGrid({ currentPrice, balance, onBetResult, priceHistory }: {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-export default function App() {
-  const [currentPrice, setCurrentPrice] = useState(95000);
-  const [balance, setBalance] = useState(100);
-  const [priceHistory, setPriceHistory] = useState<PricePoint[]>([]);
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
-
-  useEffect(() => {
-    const connectWebSocket = () => {
-      try {
-        const ws = new WebSocket('wss://stream.binance.com:9443/ws/btcusdt@ticker');
-        wsRef.current = ws;
-
-        ws.onopen = () => {
-          console.log('Connected to Binance WebSocket');
-          setConnectionStatus('connected');
-        };
-
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            const price = parseFloat(data.c);
-            
-            if (!isNaN(price) && price > 0) {
-              setCurrentPrice(price);
-              
-              setPriceHistory(prev => {
-                const now = new Date().toISOString();
-                const newPoint = { time: now, price };
-                const updated = [...prev, newPoint];
-                return updated.slice(-300);
-              });
-            }
-          } catch (error) {
-            console.error('Error parsing WebSocket message:', error);
-          }
-        };
-
-        ws.onerror = (error) => {
-          console.error('WebSocket error:', error);
-          setConnectionStatus('disconnected');
-        };
-
-        ws.onclose = () => {
-          console.log('WebSocket closed, reconnecting...');
-          setConnectionStatus('disconnected');
-          
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connectWebSocket();
-          }, 3000);
-        };
-      } catch (error) {
-        console.error('Error connecting to WebSocket:', error);
-        setConnectionStatus('disconnected');
-        
-        reconnectTimeoutRef.current = setTimeout(() => {
-          connectWebSocket();
-        }, 3000);
-      }
-    };
-
-    connectWebSocket();
-
-    return () => {
-      if (wsRef.current) wsRef.current.close();
-      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (connectionStatus === 'disconnected' && priceHistory.length === 0) {
-      const interval = setInterval(() => {
-        const volatility = 0.0002;
-        const change = (Math.random() - 0.5) * 2 * volatility;
-        
-        setCurrentPrice(prev => {
-          const newPrice = prev * (1 + change);
-          const now = new Date().toISOString();
-          
-          setPriceHistory(ph => {
-            const updated = [...ph, { time: now, price: newPrice }];
-            return updated.slice(-300);
-          });
-          
-          return newPrice;
-        });
-      }, 1000);
-
-      return () => clearInterval(interval);
-    }
-  }, [connectionStatus, priceHistory.length]);
-
-  const handleBetResult = (won: boolean, amount: number, multiplier: number) => {
-    if (won) {
-      const winnings = amount * multiplier;
-      setBalance(prev => prev + winnings);
-    } else {
-      setBalance(prev => prev - amount);
-    }
-  };
-
-  return (
-    <div className="w-screen h-screen bg-slate-950 relative">
-      <div className="absolute top-4 right-4 z-50 flex items-center gap-2 bg-slate-900/80 backdrop-blur-sm px-4 py-2 rounded-lg border border-slate-700/50">
-        <div className={`w-2 h-2 rounded-full ${
-          connectionStatus === 'connected' 
-            ? 'bg-emerald-400 animate-pulse' 
-            : connectionStatus === 'connecting'
-            ? 'bg-yellow-400 animate-pulse'
-            : 'bg-red-400'
-        }`} />
-        <span className="text-xs text-slate-300">
-          {connectionStatus === 'connected' 
-            ? 'Live BTC Data' 
-            : connectionStatus === 'connecting'
-            ? 'Connecting...'
-            : 'Reconnecting...'}
-        </span>
-      </div>
-
-      {priceHistory.length < 5 && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-blue-500/20 backdrop-blur-sm px-6 py-3 rounded-lg border border-blue-400/30">
-          <p className="text-blue-200 text-sm text-center">
-            🎮 Loading live Bitcoin data... Place bets on future price levels!
-          </p>
-        </div>
-      )}
-
-      <BettingGrid
-        currentPrice={currentPrice}
-        balance={balance}
-        onBetResult={handleBetResult}
-        priceHistory={priceHistory}
-      />
-
-      {balance < 10 && balance > 0 && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-yellow-500/20 backdrop-blur-sm px-6 py-4 rounded-lg border border-yellow-400/30">
-          <p className="text-yellow-200 text-center font-bold">
-            ⚠️ Low Balance: ${balance.toFixed(2)}
-          </p>
-        </div>
-      )}
-
-      {balance <= 0 && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-red-500/20 backdrop-blur-sm px-8 py-6 rounded-lg border border-red-400/30">
-          <p className="text-red-200 text-center font-bold text-lg mb-3">
-            Game Over!
-          </p>
-          <button
-            onClick={() => setBalance(100)}
-            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold transition-colors"
-          >
-            Reset Balance ($100)
-          </button>
-        </div>
-      )}
     </div>
   );
 }
