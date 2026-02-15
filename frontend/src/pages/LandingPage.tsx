@@ -52,9 +52,7 @@ function LandingPage() {
           <h1 className="text-4xl md:text-6xl text-yellow-400 mb-4 text-shadow-md tracking-widest uppercase">
             MONOMONS
           </h1>
-          <p className="text-xs md:text-sm text-gray-400 font-mono typing-effect">
-            INSERT COIN TO START...
-          </p>
+
           <div className="w-full h-1 bg-white mt-4 shadow-[0_4px_0_rgba(0,0,0,0.5)]"></div>
       </div>
 
