@@ -53,7 +53,9 @@ export interface BattleState {
   playerB: BattlePlayer;
   log: string[];
   winner?: string; // 'playerA' | 'playerB' | null
-  phase: 'waiting' | 'action' | 'finished';
+  phase: 'betting' | 'waiting' | 'action' | 'finished';
+  bettingEndTime?: number;
+  canBet: boolean;
 }
 
 // Re-export types from data modules
@@ -93,12 +95,20 @@ function generatePokemon(speciesName: string): BattlePokemon {
   };
 
   // Apply Ability Stat Mods on generation if they are flat/permanent
+  let accuracyMod = 1;
   if (ability.effect === 'hp_flat') {
     stats.hp += ability.value;
     stats.maxHp += ability.value;
   }
   if (ability.effect === 'speed_flat') {
     stats.speed += ability.value;
+  }
+  if (ability.effect === 'accuracy_boost') {
+    accuracyMod = ability.value;
+  }
+  if (ability.effect === 'attack_flat_boost') {
+    stats.attack += Math.floor(ability.value);
+    stats.spAttack += Math.floor(ability.value);
   }
 
   return {
@@ -113,7 +123,7 @@ function generatePokemon(speciesName: string): BattlePokemon {
       attack: 1,
       defense: 1,
       speed: 1,
-      accuracy: 1
+      accuracy: accuracyMod
     },
     cooldowns: {}
   };
@@ -220,17 +230,22 @@ export class AutoBattlerByRoom {
   public state: BattleState;
   private timer: Timer | null = null;
 
+  private bettingTimer: Timer | null = null;
+  private static readonly BETTING_DURATION = 30000; // 30 seconds for betting
+
   private constructor(roomName: string) {
-    const teamA = this.generateRandomTeam(3); // Team size 3
-    const teamB = this.generateRandomTeam(3);
+    const teamA = this.generateRandomTeam(1); // Team size 1 for now
+    const teamB = this.generateRandomTeam(1);
 
     this.state = {
       id: roomName,
       turn: 0,
       playerA: { id: 'playerA', name: 'Agent Red', team: teamA, activePokemonIndex: 0, faintedCount: 0 },
       playerB: { id: 'playerB', name: 'Agent Blue', team: teamB, activePokemonIndex: 0, faintedCount: 0 },
-      log: ['Battle Started!'],
-      phase: 'waiting'
+      log: ['Battle starting soon! Place your bets!'],
+      phase: 'betting',
+      bettingEndTime: Date.now() + AutoBattlerByRoom.BETTING_DURATION,
+      canBet: true
     };
   }
 
@@ -254,14 +269,32 @@ export class AutoBattlerByRoom {
   }
 
   public start() {
-    if (this.state.phase !== 'waiting') return;
+    if (this.state.phase !== 'betting') return;
+    
+    // Broadcast initial betting state
+    this.broadcast();
+    
+    // Start betting countdown
+    const bettingDuration = this.state.bettingEndTime! - Date.now();
+    this.bettingTimer = setTimeout(() => {
+      this.startBattle();
+    }, Math.max(0, bettingDuration));
+  }
+
+  private startBattle() {
+    if (this.state.phase !== 'betting') return;
+    
+    // Transition from betting to fighting
     this.state.phase = 'action';
-    this.broadcast(); // Initial state
+    this.state.canBet = false;
+    this.state.log.push('Betting closed! Battle begins!');
+    this.broadcast();
     this.nextTurn();
   }
 
   public stop() {
     if (this.timer) clearTimeout(this.timer);
+    if (this.bettingTimer) clearTimeout(this.bettingTimer);
   }
 
   private generateRandomTeam(count: number): BattlePokemon[] {
@@ -294,7 +327,7 @@ export class AutoBattlerByRoom {
     // Auto-battle loop delay (Make it readable for watchers)
     this.timer = setTimeout(() => {
       this.executeTurn();
-    }, 12000); // 3 seconds per turn
+    }, 3000); // 3 seconds per turn
   }
 
   private async executeTurn() {
@@ -489,14 +522,24 @@ export class AutoBattlerByRoom {
       console.error("[GAME END] Payout error:", e);
     }
 
-    // Restart after 1 minute (60 seconds)
-    console.log(`[GAME END] Battle ${this.state.id} finished. Restarting in 60s...`);
+    // Restart after 10 seconds
+    console.log(`[GAME END] Battle ${this.state.id} finished. Restarting in 10s...`);
     setTimeout(() => {
       this.resetBattle();
-    }, 60000);
+    }, 10000);
   }
 
   private resetBattle() {
+    // Clear any existing timers
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
+    if (this.bettingTimer) {
+      clearTimeout(this.bettingTimer);
+      this.bettingTimer = null;
+    }
+
     const teamA = this.generateRandomTeam(1);
     const teamB = this.generateRandomTeam(1);
 
@@ -505,11 +548,13 @@ export class AutoBattlerByRoom {
       turn: 0,
       playerA: { id: 'playerA', name: 'Agent Red', team: teamA, activePokemonIndex: 0, faintedCount: 0 },
       playerB: { id: 'playerB', name: 'Agent Blue', team: teamB, activePokemonIndex: 0, faintedCount: 0 },
-      log: ['New Battle Starting!'],
-      phase: 'waiting'
+      log: ['New Battle Starting! Place your bets!'],
+      phase: 'betting',
+      bettingEndTime: Date.now() + AutoBattlerByRoom.BETTING_DURATION,
+      canBet: true
     };
 
-    console.log(`Battle ${this.state.id} restarted.`);
+    console.log(`Battle ${this.state.id} restarted with new teams.`);
     this.start();
   }
 }

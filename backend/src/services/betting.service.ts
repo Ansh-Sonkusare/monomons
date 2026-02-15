@@ -50,6 +50,24 @@ export class BettingService {
         }
 
         try {
+            // Check if betting is still open for this room (dynamic import to avoid circular dependency)
+            const { AutoBattlerByRoom } = await import('./battle.service');
+            const battle = AutoBattlerByRoom.get(roomId);
+            if (!battle) {
+                console.warn(`[DEPOSIT] No active battle found for room ${roomId}`);
+                throw new Error("No active battle found");
+            }
+
+            if (battle.state.phase !== 'betting' || !battle.state.canBet) {
+                console.warn(`[DEPOSIT] Betting is closed for room ${roomId}. Current phase: ${battle.state.phase}`);
+                throw new Error("Betting is closed for this battle");
+            }
+
+            if (battle.state.bettingEndTime && Date.now() > battle.state.bettingEndTime) {
+                console.warn(`[DEPOSIT] Betting time has expired for room ${roomId}`);
+                throw new Error("Betting time has expired");
+            }
+
             console.log(`[DEPOSIT] Verifying bet tx: ${txHash} | Amount: ${amount} MON | Choice: ${choice} | Room: ${roomId}`);
             const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash as Hex });
             
@@ -131,21 +149,29 @@ export class BettingService {
         const totalPool = roomBets.reduce((acc, b) => acc + BigInt(b.amount), 0n);
         const loserPool = losers.reduce((acc, b) => acc + BigInt(b.amount), 0n);
         const winnerPool = winners.reduce((acc, b) => acc + BigInt(b.amount), 0n);
+        
+        // Platform takes 5% fee from the total pool
+        const PLATFORM_FEE_PERCENT = 5n;
+        const platformFee = (totalPool * PLATFORM_FEE_PERCENT) / 100n;
+        const distributableProfit = loserPool; // All loser money goes to winners (after platform fee is deducted from total)
 
         console.log(`[WITHDRAWAL] Total Pool: ${formatEther(totalPool)} MON | Winners: ${winners.length} | Losers: ${losers.length}`);
         console.log(`[WITHDRAWAL] Winner Pool: ${formatEther(winnerPool)} MON | Loser Pool: ${formatEther(loserPool)} MON`);
+        console.log(`[WITHDRAWAL] Platform Fee (5% of total): ${formatEther(platformFee)} MON | Distributable Profit: ${formatEther(distributableProfit)} MON`);
         
         let totalPaidOut = 0n;
         const payoutTxHashes: string[] = [];
 
-        // Process Winners - pay principal + profit from the game pool
+        // Process Winners - proportional share of remaining 95% pool
+        const remainingPool = totalPool - platformFee; // 95% of total
+        
         for (const w of winners) {
             const principal = BigInt(w.amount);
-            const shareOfProfit = winnerPool > 0n ? (principal * loserPool) / winnerPool : 0n;
-            const totalPayout = principal + shareOfProfit;
+            // Proportional share based on their bet amount relative to total winner bets
+            const totalPayout = winnerPool > 0n ? (principal * remainingPool) / winnerPool : 0n;
             
             console.log(`[WITHDRAWAL] Processing Winner: ${w.userAddress}`);
-            console.log(`[WITHDRAWAL]   - Bet: ${formatEther(principal)} MON | Profit: ${formatEther(shareOfProfit)} MON | Total: ${formatEther(totalPayout)} MON`);
+            console.log(`[WITHDRAWAL]   - Bet: ${formatEther(principal)} MON | Proportional Payout: ${formatEther(totalPayout)} MON`);
 
             try {
                 const txHash = await this.withdrawFromGame(roomId, totalPayout, w.userAddress);
@@ -171,10 +197,12 @@ export class BettingService {
         }
         
         console.log(`[WITHDRAWAL] Total paid out: ${formatEther(totalPaidOut)} MON`);
+        console.log(`[WITHDRAWAL] Platform fee retained: ${formatEther(platformFee)} MON`);
         
-        // End game - remaining goes to admin
+        // End game - remaining pool (platform fee + any unclaimed funds) goes to admin
         try {
-            console.log(`[WITHDRAWAL] Ending game ${roomId} - remaining funds go to admin...`);
+            const remainingInPool = totalPool - totalPaidOut;
+            console.log(`[WITHDRAWAL] Ending game ${roomId} - remaining ${formatEther(remainingInPool)} MON (includes ${formatEther(platformFee)} MON platform fee) goes to admin...`);
             const endGameTx = await this.endGame(roomId);
             console.log(`[WITHDRAWAL] ✓ Game ended (tx: ${endGameTx})`);
         } catch (e) {

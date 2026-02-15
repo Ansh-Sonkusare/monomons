@@ -49,10 +49,11 @@ function LandingPage() {
 
       {/* Retro Header */}
       <div className="text-center mb-16 relative">
-        <h1 className="text-4xl md:text-6xl text-yellow-400 mb-4 text-shadow-md tracking-widest uppercase">
-          MONOMONS
-        </h1>
-        <div className="w-full h-1 bg-white mt-4 shadow-[0_4px_0_rgba(0,0,0,0.5)]"></div>
+          <h1 className="text-4xl md:text-6xl text-yellow-400 mb-4 text-shadow-md tracking-widest uppercase">
+            MONOMONS
+          </h1>
+
+          <div className="w-full h-1 bg-white mt-4 shadow-[0_4px_0_rgba(0,0,0,0.5)]"></div>
       </div>
 
       <div className="max-w-6xl w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
