@@ -6,6 +6,7 @@ import PokemonWorld from './pages/PokemonWorld';
 import SpinnerPage from './pages/SpinnerPage';
 
 import DojoPage from './pages/DojoPage';
+import TapTrading from './pages/TapTrading';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
           <Route element={<Dashboard />}>
             <Route path="/pokemon-world" element={<PokemonWorld />} />
             <Route path="/pokemon-world/:dojoName/:roomId" element={<DojoPage />} />
+            <Route path="/tap-trading" element={<TapTrading />} />
           </Route>
         </Routes>
       </div>
