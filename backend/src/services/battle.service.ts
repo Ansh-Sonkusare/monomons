@@ -497,8 +497,8 @@ export class AutoBattlerByRoom {
   }
 
   private resetBattle() {
-    const teamA = this.generateRandomTeam(3);
-    const teamB = this.generateRandomTeam(3);
+    const teamA = this.generateRandomTeam(1);
+    const teamB = this.generateRandomTeam(1);
 
     this.state = {
       id: this.state.id,
