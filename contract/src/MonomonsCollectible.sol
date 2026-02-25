@@ -1,19 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
-import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract MonomonsCollectible is ERC721, ERC721URIStorage, Ownable, VRFConsumerBaseV2 {
-    VRFCoordinatorV2Interface public vrfCoordinator;
-    uint64 public subscriptionId;
-    bytes32 public keyHash;
-    uint32 public callbackGasLimit = 200000;
-    uint16 public requestConfirmations = 3;
-
+contract MonomonsCollectible is ERC721, ERC721URIStorage, Ownable {
+    
     enum Rarity { Common, Uncommon, Rare, Epic, Legendary }
     
     struct RollRequest {
@@ -27,21 +20,15 @@ contract MonomonsCollectible is ERC721, ERC721URIStorage, Ownable, VRFConsumerBa
     mapping(uint8 => uint256) public rarityMaxSupply;
     mapping(uint256 => uint8) public tokenRarity;
     mapping(address => uint256[]) public ownedTokens;
+    mapping(uint256 => bool) public usedBlockHash;
     
     uint256 public nextTokenId;
+    uint256 public rollCounter;
     
     event RollRequested(address indexed user, uint256 requestId, bool isCharacter, uint256 fee);
     event RollFulfilled(address indexed user, uint256 tokenId, uint8 rarity, string rarityName);
 
-    constructor(
-        address _vrfCoordinator,
-        uint64 _subscriptionId,
-        bytes32 _keyHash
-    ) ERC721("MonomonsCollectible", "MONO") VRFConsumerBaseV2(_vrfCoordinator) {
-        vrfCoordinator = VRFCoordinatorV2Interface(_vrfCoordinator);
-        subscriptionId = _subscriptionId;
-        keyHash = _keyHash;
-        
+    constructor() ERC721("MonomonsCollectible", "MONO") Ownable(msg.sender) {
         rarityMaxSupply[uint8(Rarity.Common)] = type(uint256).max;
         rarityMaxSupply[uint8(Rarity.Uncommon)] = 10000;
         rarityMaxSupply[uint8(Rarity.Rare)] = 5000;
@@ -70,22 +57,31 @@ contract MonomonsCollectible is ERC721, ERC721URIStorage, Ownable, VRFConsumerBa
     function requestRoll(bool isCharacter) external payable returns (uint256 requestId) {
         require(msg.value >= 0.05 ether, "Insufficient payment");
         
-        requestId = vrfCoordinator.requestRandomWords(
-            keyHash, subscriptionId, requestConfirmations, callbackGasLimit, 1
-        );
+        requestId = rollCounter++;
+        rollRequests[requestId] = RollRequest({ 
+            user: msg.sender, 
+            isCharacter: isCharacter, 
+            amountPaid: msg.value 
+        });
         
-        rollRequests[requestId] = RollRequest({ user: msg.sender, isCharacter: isCharacter, amountPaid: msg.value });
         emit RollRequested(msg.sender, requestId, isCharacter, msg.value);
     }
 
-    function fulfillRandomness(uint256 requestId, uint256[] memory randomWords) internal override {
+    function fulfillRoll(uint256 requestId) external onlyOwner {
         RollRequest memory req = rollRequests[requestId];
         require(req.user != address(0), "Invalid request");
         
-        uint8 rarity = determineRarity(randomWords[0]);
+        uint256 random = uint256(keccak256(abi.encodePacked(
+            blockhash(block.number - 1),
+            requestId,
+            req.user,
+            block.timestamp
+       )));
+        
+        uint8 rarity = determineRarity(random);
         
         if (raritySupply[rarity] >= rarityMaxSupply[rarity]) {
-            rarity = findAvailableRarity(randomWords[0]);
+            rarity = findAvailableRarity(random);
         }
         
         uint256 tokenId = nextTokenId++;
