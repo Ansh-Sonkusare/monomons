@@ -3,9 +3,9 @@ import Navbar from './components/Navbar';
 import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
 import PokemonWorld from './pages/PokemonWorld';
-
 import DojoPage from './pages/DojoPage';
 import TapTrading from './pages/TapTrading';
+import RollPage from './pages/RollPage';
 
 function App() {
   return (
@@ -17,6 +17,7 @@ function App() {
             <Route path="/tap-trading" element={<TapTrading />} />
             <Route path="/pokemon-world" element={<PokemonWorld />} />
             <Route path="/pokemon-world/:dojoName/:roomId" element={<DojoPage />} />
+            <Route path="/roll" element={<RollPage />} />
           </Route>
         </Routes>
       </div>
