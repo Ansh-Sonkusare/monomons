@@ -70,7 +70,7 @@ export interface BattleState {
 // STATIC DATA LIBRARY
 // ==========================================
 
-const MOVES_LIBRARY: BattleMove[] = [
+export const MOVES_LIBRARY: BattleMove[] = [
     { name: 'Flamethrower', power: 90, accuracy: 0.95, type: 'fire', category: 'special', cooldown: 1 },
     { name: 'Fire Blast', power: 110, accuracy: 0.8, type: 'fire', category: 'special', cooldown: 3 },
     { name: 'Flame Wheel', power: 70, accuracy: 1.0, type: 'fire', category: 'physical', cooldown: 0 },
@@ -102,7 +102,7 @@ const MOVES_LIBRARY: BattleMove[] = [
     { name: 'Body Slam', power: 85, accuracy: 1.0, type: 'normal', category: 'physical', cooldown: 1 }
 ];
 
-const ABILITIES_LIBRARY: BattleAbility[] = [
+export const ABILITIES_LIBRARY: BattleAbility[] = [
     { name: 'Blaze', effect: 'power_boost_low_hp', value: 1.15 },
     { name: 'Torrent', effect: 'power_boost_low_hp', value: 1.15 },
     { name: 'Overgrow', effect: 'power_boost_low_hp', value: 1.15 },
@@ -117,7 +117,7 @@ const ABILITIES_LIBRARY: BattleAbility[] = [
     { name: 'Adaptability', effect: 'all_power_boost', value: 1.1 }
 ];
 
-const POKEMON_SPECIES_LIBRARY = [
+export const POKEMON_SPECIES_LIBRARY = [
     { name: 'Charizard', types: ['fire', 'flying'], ability: 'Blaze', moves: ['Flamethrower', 'Air Slash', 'Slash', 'Fire Blast'], baseStats: { hp: 78, attack: 84, defense: 78, spAttack: 109, spDefense: 85, speed: 100 } },
     { name: 'Blastoise', types: ['water'], ability: 'Tanky', moves: ['Surf', 'Ice Beam', 'Crunch', 'Hydro Pump'], baseStats: { hp: 79, attack: 83, defense: 100, spAttack: 85, spDefense: 105, speed: 78 } },
     { name: 'Venusaur', types: ['grass', 'poison'], ability: 'Overgrow', moves: ['Razor Leaf', 'Energy Ball', 'Tackle', 'Solar Beam'], baseStats: { hp: 80, attack: 82, defense: 83, spAttack: 100, spDefense: 100, speed: 80 } },
