@@ -139,3 +139,77 @@ export type Player = typeof players.$inferSelect;
 export type NewPlayer = typeof players.$inferInsert;
 export type Bet = typeof bets.$inferSelect;
 export type NewBet = typeof bets.$inferInsert;
+
+export const characters = pgTable('characters', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tokenId: integer('token_id').notNull().unique(),
+  ownerAddress: text('owner_address').notNull(),
+  rarity: text('rarity').notNull(),
+  species: text('species').notNull(),
+  stats: jsonb('stats'),
+  moves: jsonb('moves'),
+  ability: text('ability'),
+  metadata: jsonb('metadata'),
+  txHash: text('tx_hash'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const cards = pgTable('cards', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tokenId: integer('token_id').notNull().unique(),
+  ownerAddress: text('owner_address').notNull(),
+  rarity: text('rarity').notNull(),
+  cardType: text('card_type').notNull(),
+  effect: jsonb('effect'),
+  name: text('name').notNull(),
+  description: text('description'),
+  metadata: jsonb('metadata'),
+  txHash: text('tx_hash'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const rolls = pgTable('rolls', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id),
+  userAddress: text('user_address').notNull(),
+  rollType: text('roll_type').notNull(),
+  cost: text('cost').notNull(),
+  rarity: text('rarity'),
+  resultTokenId: integer('result_token_id'),
+  status: text('status').default('pending'),
+  vrfRequestId: text('vrf_request_id'),
+  txHash: text('tx_hash'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const userTeams = pgTable('user_teams', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id),
+  characterId: uuid('character_id').notNull().references(() => characters.id),
+  slot: integer('slot').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const trades = pgTable('trades', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  sellerAddress: text('seller_address').notNull(),
+  buyerAddress: text('buyer_address'),
+  itemType: text('item_type').notNull(),
+  itemId: uuid('item_id').notNull(),
+  tokenId: integer('token_id').notNull(),
+  price: text('price').notNull(),
+  status: text('status').default('open'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  completedAt: timestamp('completed_at'),
+});
+
+export type Character = typeof characters.$inferSelect;
+export type NewCharacter = typeof characters.$inferInsert;
+export type Card = typeof cards.$inferSelect;
+export type NewCard = typeof cards.$inferInsert;
+export type Roll = typeof rolls.$inferSelect;
+export type NewRoll = typeof rolls.$inferInsert;
+export type UserTeam = typeof userTeams.$inferSelect;
+export type NewUserTeam = typeof userTeams.$inferInsert;
+export type Trade = typeof trades.$inferSelect;
+export type NewTrade = typeof trades.$inferInsert;
