@@ -8,6 +8,7 @@ import { betRoutes } from './routes/bet.routes'
 import { tradingRoutes } from './routes/trading.routes'
 import { adminRoutes } from './routes/admin.routes'
 import { rollRoutes } from './routes/roll.routes'
+import { tradeRoutes } from './routes/trade.routes'
 import { AutoBattlerByRoom } from './services/battle.service'
 import { wsService } from './services/websocket.service'
 import { priceService } from './services/price.service'
@@ -28,6 +29,7 @@ export const app = new Elysia()
 	.use(tradingRoutes)
 	.use(adminRoutes)
 	.use(rollRoutes)
+	.use(tradeRoutes)
 	// WebSocket route for trading updates
 	.ws('/ws/trading', {
 		open(ws) {
