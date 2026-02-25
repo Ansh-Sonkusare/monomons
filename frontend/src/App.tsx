@@ -7,6 +7,8 @@ import SpinnerPage from './pages/SpinnerPage';
 
 import DojoPage from './pages/DojoPage';
 import TapTrading from './pages/TapTrading';
+import RollPage from './pages/RollPage';
+import InventoryPage from './pages/InventoryPage';
 
 function App() {
   return (
@@ -15,6 +17,8 @@ function App() {
         <Routes>
           <Route path="/" element={<><Navbar /><LandingPage /></>} />
           <Route path="/spinner" element={<><Navbar /><SpinnerPage /></>} />
+          <Route path="/roll" element={<><Navbar /><RollPage /></>} />
+          <Route path="/inventory" element={<><Navbar /><InventoryPage /></>} />
           <Route element={<Dashboard />}>
             <Route path="/pokemon-world" element={<PokemonWorld />} />
             <Route path="/pokemon-world/:dojoName/:roomId" element={<DojoPage />} />
