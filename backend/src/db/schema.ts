@@ -87,6 +87,19 @@ export const userTeams = pgTable('user_teams', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+export const trades = pgTable('trades', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  sellerAddress: text('seller_address').notNull(),
+  buyerAddress: text('buyer_address'),
+  itemType: text('item_type').notNull(), // 'character' or 'card'
+  itemId: uuid('item_id').notNull(),
+  tokenId: integer('token_id').notNull(),
+  price: text('price').notNull(), // MON tokens as wei string
+  status: text('status').default('open'), // 'open', 'pending', 'completed', 'cancelled'
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  completedAt: timestamp('completed_at'),
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Player = typeof players.$inferSelect;
@@ -101,3 +114,5 @@ export type Roll = typeof rolls.$inferSelect;
 export type NewRoll = typeof rolls.$inferInsert;
 export type UserTeam = typeof userTeams.$inferSelect;
 export type NewUserTeam = typeof userTeams.$inferInsert;
+export type Trade = typeof trades.$inferSelect;
+export type NewTrade = typeof trades.$inferInsert;

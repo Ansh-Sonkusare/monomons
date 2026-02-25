@@ -6,6 +6,7 @@ import { authRoutes } from './routes/auth.routes'
 import { gameRoutes } from './routes/game.routes'
 import { betRoutes } from './routes/bet.routes'
 import { rollRoutes } from './routes/roll.routes'
+import { tradeRoutes } from './routes/trade.routes'
 import { AutoBattlerByRoom } from './services/battle.service'
 
 export const app = new Elysia()
@@ -22,6 +23,7 @@ export const app = new Elysia()
 	.use(gameRoutes)
 	.use(betRoutes)
 	.use(rollRoutes)
+	.use(tradeRoutes)
 	.use(
 		await staticPlugin({
 			prefix: '/'
